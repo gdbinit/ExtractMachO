@@ -1,0 +1,55 @@
+
+ ___________         __                        __   
+ \_   _____/__  ____/  |_____________    _____/  |_ 
+   |    __)_\  \/  /\   __\_  __ \__  \ _/ ___\   __\
+   |        \>    <  |  |  |  | \// __ \\  \___|  |  
+  /_______  /__/\_ \ |__|  |__|  (____  /\___  >__|  
+          \/      \/                  \/     \/      
+    _____                .__              ________   
+   /     \ _____    ____ |  |__           \_____  \  
+  /  \ /  \\__  \ _/ ___\|  |  \   ______  /   |   \ 
+ /    Y    \/ __ \\  \___|   Y  \ /_____/ /    |    \
+ \____|__  (____  /\___  >___|  /         \_______  /
+         \/     \/     \/     \/                  \/ 
+  v0.1
+
+ (c) 2012, fG! - reverser@put.as - http://reverse.put.as
+
+This is a very simple IDA plugin to extract a Mach-O binary contained anywhere in the disassembly.
+
+For now it is able to extract isolated 32 and 64bits binaries, not fat binaries.
+Support for fat binaries will be added soon.
+
+You need to position the cursor at the binary start address (Mach-O magic values 0xFEEDFACE or 0xFEEDFACF).
+
+Tested with IDA 6.3 Mac OS X version.
+
+To compile for OS X use the Makefile or the XCode Project.
+The Makefile is easier to use since you just need to set the __EA64__ environment variable if you want to compile
+to IDA 64bits version.
+
+You will need to edit the Makefile or the XCode project and set the paths to the SDK.
+Refer to http://reverse.put.as/2011/10/31/how-to-create-ida-cc-plugins-with-xcode/ for XCode.
+Set the environment variable __EA64__ if you want the plugin for IDA 64bits.
+
+For Windows, DEVC++ project file is included for IDA 32 and 64 bits versions.
+You will need to edit the DEVC++ project and set the paths to the SDK and plugin binary output.
+Please refer to http://www.binarypool.com/idapluginwriting/ for more information.
+You should do a Rebuild All in DEVC++ (especially if you switch from 32 to 64 project or vice-versa).
+
+No default shortcut is set. 
+Edit IDAP_hotkey at extractmacho.cpp to your own preference if you wish so.
+
+Bug reports, fixes and patches are welcome: reverser@put.as
+or github.com/gdbinit/extractmacho
+
+IDA BUGS:
+Another bug is related to the PLUGIN_UNL flag. It is used to "Unload the plugin immediately after calling 'run'.".
+If this option is set, it crashes the Windows version. Mac version seems do to fine with it.
+
+That's it! Enjoy :-)
+
+fG!
+
+v0.1 - Initial version that supports 32 and 64bits isolated binaries.
+	 
