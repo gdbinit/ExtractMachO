@@ -8,10 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		DE4880D614615B0000C469F0 /* mymacros.h in Headers */ = {isa = PBXBuildFile; fileRef = DE4880D514615B0000C469F0 /* mymacros.h */; };
-		DE4882CC1461E66F00C469F0 /* armthread_status.h in Headers */ = {isa = PBXBuildFile; fileRef = DE4882CB1461E66F00C469F0 /* armthread_status.h */; };
-		DE4883991462068500C469F0 /* thread_status.h in Headers */ = {isa = PBXBuildFile; fileRef = DE4883981462068500C469F0 /* thread_status.h */; };
-		DE88A9B7145F1C1A00678B8B /* processheader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DE88A9B5145F1C1A00678B8B /* processheader.cpp */; };
-		DE88A9B8145F1C1A00678B8B /* processheader.h in Headers */ = {isa = PBXBuildFile; fileRef = DE88A9B6145F1C1A00678B8B /* processheader.h */; };
 		DEC1F263145ECE0F009A8407 /* extractmacho.h in Headers */ = {isa = PBXBuildFile; fileRef = DEC1F261145ECE0F009A8407 /* extractmacho.h */; };
 		DEC1F264145ECE0F009A8407 /* extractmacho.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DEC1F262145ECE0F009A8407 /* extractmacho.cpp */; };
 		DEC1F266145ECEDD009A8407 /* loader.h in Headers */ = {isa = PBXBuildFile; fileRef = DEC1F265145ECEDD009A8407 /* loader.h */; };
@@ -20,11 +16,7 @@
 /* Begin PBXFileReference section */
 		D2AAC0630554660B00DB518D /* extractmacho.pmc */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = extractmacho.pmc; sourceTree = BUILT_PRODUCTS_DIR; };
 		DE4880D514615B0000C469F0 /* mymacros.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = mymacros.h; sourceTree = "<group>"; };
-		DE4882CB1461E66F00C469F0 /* armthread_status.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = armthread_status.h; sourceTree = "<group>"; };
-		DE4883981462068500C469F0 /* thread_status.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = thread_status.h; sourceTree = "<group>"; };
 		DE4883FB1462396A00C469F0 /* README */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README; sourceTree = "<group>"; };
-		DE88A9B5145F1C1A00678B8B /* processheader.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = processheader.cpp; sourceTree = "<group>"; };
-		DE88A9B6145F1C1A00678B8B /* processheader.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = processheader.h; sourceTree = "<group>"; };
 		DEC1F261145ECE0F009A8407 /* extractmacho.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = extractmacho.h; sourceTree = "<group>"; };
 		DEC1F262145ECE0F009A8407 /* extractmacho.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = extractmacho.cpp; sourceTree = "<group>"; };
 		DEC1F265145ECEDD009A8407 /* loader.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = loader.h; sourceTree = "<group>"; };
@@ -56,11 +48,7 @@
 				DEC1F261145ECE0F009A8407 /* extractmacho.h */,
 				DEC1F262145ECE0F009A8407 /* extractmacho.cpp */,
 				DEC1F265145ECEDD009A8407 /* loader.h */,
-				DE88A9B5145F1C1A00678B8B /* processheader.cpp */,
-				DE88A9B6145F1C1A00678B8B /* processheader.h */,
 				DE4880D514615B0000C469F0 /* mymacros.h */,
-				DE4882CB1461E66F00C469F0 /* armthread_status.h */,
-				DE4883981462068500C469F0 /* thread_status.h */,
 				DE4883FB1462396A00C469F0 /* README */,
 			);
 			name = Source;
@@ -83,10 +71,7 @@
 			files = (
 				DEC1F263145ECE0F009A8407 /* extractmacho.h in Headers */,
 				DEC1F266145ECEDD009A8407 /* loader.h in Headers */,
-				DE88A9B8145F1C1A00678B8B /* processheader.h in Headers */,
 				DE4880D614615B0000C469F0 /* mymacros.h in Headers */,
-				DE4882CC1461E66F00C469F0 /* armthread_status.h in Headers */,
-				DE4883991462068500C469F0 /* thread_status.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -143,7 +128,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				DEC1F264145ECE0F009A8407 /* extractmacho.cpp in Sources */,
-				DE88A9B7145F1C1A00678B8B /* processheader.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -173,8 +157,10 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				EXECUTABLE_PREFIX = lib;
+				EXECUTABLE_EXTENSION = pmc;
+				EXECUTABLE_PREFIX = "";
 				GCC_MODEL_TUNING = G5;
+				GCC_PREPROCESSOR_DEFINITIONS = __MAC__;
 				HEADER_SEARCH_PATHS = (
 					"/Applications/IDA\\ Pro\\ 6.3/idasdk63/include",
 				);
@@ -210,6 +196,7 @@
 			buildSettings = {
 				ARCHS = "$(ARCHS_STANDARD_32_BIT)";
 				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_PREPROCESSOR_DEFINITIONS = __MAC__;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = (

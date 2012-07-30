@@ -39,16 +39,14 @@
 
 #define DEBUG 0
 
-int counter = 0;
-
 int IDAP_init(void)
 {
-    if (inf.filetype != f_MACHO)
-    {
-		// if it's not mach-o binary then plugin is unavailable
-		msg("[macho plugin] Executable format must be Mach-O!");
-		return PLUGIN_SKIP;
-    }   
+//    if (inf.filetype != f_MACHO)
+//    {
+//		// if it's not mach-o binary then plugin is unavailable
+//		msg("[macho plugin] Executable format must be Mach-O, not loading plugin!");
+//		return PLUGIN_SKIP;
+//    }   
     return PLUGIN_KEEP;
 }
 
@@ -58,76 +56,121 @@ void IDAP_term(void)
 }
 
 void IDAP_run(int arg)
-{
- 
+{ 
+    // this is useful for testing - plugin will be unloaded after execution
+    // so we can copy a new version and call it again using IDC: RunPlugin("extractmacho", -1);
+    // this gave (gives?) problems in Windows version
     extern plugin_t PLUGIN;
-//#ifdef __MAC__
+#ifdef __MAC__
 	PLUGIN.flags |= PLUGIN_UNL;
-//#endif
+#endif
 
     // retrieve current cursor address and it's value
     // so we can verify if it can be a mach-o binary
-    ea_t ea = get_screen_ea();
-    uint32 magicValue = get_long(ea);
+    ea_t cursorAddress = get_screen_ea();
+#if DEBUG
+    msg("[DEBUG] Cursor Address is %llx\n", cursorAddress);
+#endif
+    uint32 magicValue = get_long(cursorAddress);
     
     struct mach_header *mach_header = NULL;
     struct mach_header_64 *mach_header64 = NULL;
     
-    uint8 arch = 0;
-    
+    uint8_t arch = 0;
+    uint8_t fat = 0; 
     if (magicValue == MH_MAGIC)
     {
+#if DEBUG
+        msg("[DEBUG] Target is 32bits!\n");
+#endif
         mach_header = (struct mach_header *)qalloc(sizeof(struct mach_header));
-        if(!get_many_bytes(ea, mach_header, sizeof(struct mach_header)))
+        // retrieve mach_header contents
+        if(!get_many_bytes(cursorAddress, mach_header, sizeof(struct mach_header)))
         {
-            msg("Read bytes failed!\n");
+            msg("[ERROR] Read bytes failed!\n");
             return;
         }
-        msg("%x %x\n", mach_header->magic, mach_header->sizeofcmds);
     }
     else if (magicValue == MH_MAGIC_64)
     {
+#if DEBUG
+        msg("[DEBUG] Target is 64bits!\n");
+#endif
         mach_header64 = (struct mach_header_64 *)qalloc(sizeof(struct mach_header_64));
-        get_many_bytes(ea, mach_header, sizeof(struct mach_header_64));
+        if(!get_many_bytes(cursorAddress, mach_header64, sizeof(struct mach_header_64)))
+        {
+            msg("[ERROR] Read bytes failed!\n");
+            return;
+        }
         arch = 1;
+    }
+    // FIXME: implement FAT binary support
+    else if (magicValue == FAT_CIGAM)
+    {
+        fat = 1;
     }
     else    
     {
-        msg("[ERROR] No potentially valid mach-o binary at current location!");
+        msg("[ERROR] No potentially valid mach-o binary at current location!\n");
         return;
     }
-    
+
+    // ask for output filename
     char *outputFilename = askfile_c(1, NULL, "Select output file...");
-    if ( outputFilename == NULL || outputFilename[0] == 0 )
+    if (outputFilename == NULL || outputFilename[0] == 0)
         return;
     
     FILE *outputFile = qfopen(outputFilename, "wb+");
+    if (outputFile == NULL)
+    {
+        msg("[ERROR] Could not open %s file!\n", outputFilename);
+        return;
+    }
     
-    qfwrite(outputFile, mach_header, sizeof(struct mach_header));
+    /*
+     * we need to write 3 distinct blocks of data:
+     * 1) the mach_header
+     * 2) the load commands
+     * 3) the code and data from the LC_SEGMENT/LC_SEGMENT_64 commands
+     */
     
+    // write the mach_header to the file
+    if (arch)
+        qfwrite(outputFile, mach_header64, sizeof(struct mach_header_64));
+    else
+        qfwrite(outputFile, mach_header, sizeof(struct mach_header));
 
-    // read load commands
+    // read the load commands
+    uint32_t ncmds = arch ? mach_header64->ncmds : mach_header->ncmds;
+    uint32_t sizeofcmds = arch ? mach_header64->sizeofcmds : mach_header->sizeofcmds;
+    uint32_t headerSize = arch ? sizeof(struct mach_header_64) : sizeof(struct mach_header);
+    
     uint8_t *loadcmdsBuffer = NULL;
-    loadcmdsBuffer = (uint8_t*)qalloc(mach_header->sizeofcmds);
-    get_many_bytes(ea+sizeof(struct mach_header), loadcmdsBuffer, mach_header->sizeofcmds);
+    loadcmdsBuffer = (uint8_t*)qalloc(sizeofcmds);
     
-    qfwrite(outputFile, loadcmdsBuffer, mach_header->sizeofcmds);
-    
-    struct load_command loadCmd;
-    ea_t cmdsBaseAddress = ea + sizeof(struct mach_header);
+    get_many_bytes(cursorAddress + headerSize, loadcmdsBuffer, sizeofcmds);
+    // write all the load commands block to the output file
+    // only LC_SEGMENT commands contain further data
+    qfwrite(outputFile, loadcmdsBuffer, sizeofcmds);
+
+    // and now process the load commands so we can retrieve code and data
+    struct load_command loadCommand;
+    ea_t cmdsBaseAddress = cursorAddress + headerSize;    
     ea_t codeOffset = 0;
+    
     // read segments so we can write the code and data
     // only the segment commands have useful information
-    for (uint32_t i = 0; i < mach_header->ncmds; i++)
+    for (uint32_t i = 0; i < ncmds; i++)
     {
-//        loadCmd = (struct load_command*)cmdsBaseAddress;
-        get_many_bytes(cmdsBaseAddress, &loadCmd, sizeof(struct load_command));
+        get_many_bytes(cmdsBaseAddress, &loadCommand, sizeof(struct load_command));
         struct segment_command segmentCommand;
-        if (loadCmd.cmd == LC_SEGMENT)
+        struct segment_command_64 segmentCommand64;
+        // 32bits targets
+        if (loadCommand.cmd == LC_SEGMENT)
         {
-            
             get_many_bytes(cmdsBaseAddress, &segmentCommand, sizeof(struct segment_command));
-            msg("fileoffset %x filesize %x\n", segmentCommand.fileoff, segmentCommand.filesize);
+            // the file offset info in LC_SEGMENT is zero at __TEXT so we need to get it from the sections
+            // the size is ok to be used
             if (strncmp(segmentCommand.segname, "__TEXT", 16) == 0)
             {
                 ea_t sectionAddress = cmdsBaseAddress + sizeof(struct segment_command);
@@ -144,35 +187,67 @@ void IDAP_run(int arg)
                     }
                     sectionAddress += sizeof(struct section);
                 }
-            
             }
-            // write
-            uint8_t *buf = (uint8_t*)qalloc(segmentCommand.filesize);
-            get_many_bytes(ea + codeOffset, buf, segmentCommand.filesize);
-            if (strncmp(segmentCommand.segname, "__TEXT", 16) == 0)
+            // for all other segments the fileoffset info in the LC_SEGMENT is valid so we can use it
+            else
             {
-                qfseek(outputFile, codeOffset, SEEK_SET);
+                codeOffset = segmentCommand.fileoff;
             }
+            // read and write the data
+            uint8_t *buf = (uint8_t*)qalloc(segmentCommand.filesize);
+            get_many_bytes(cursorAddress + codeOffset, buf, segmentCommand.filesize);
+            // always set the offset
+            qfseek(outputFile, codeOffset, SEEK_SET);
             qfwrite(outputFile, buf, segmentCommand.filesize);
             qfree(buf);
         }
-        cmdsBaseAddress += loadCmd.cmdsize;
+        // 64bits targets
+        else if (loadCommand.cmd == LC_SEGMENT_64)
+        {
+            get_many_bytes(cmdsBaseAddress, &segmentCommand64, sizeof(struct segment_command_64));
+            if(strncmp(segmentCommand64.segname, "__TEXT", 16) == 0)
+            {
+                ea_t sectionAddress = cmdsBaseAddress + sizeof(struct segment_command_64);
+                struct section_64 sectionCommand64;
+                for (uint32_t x = 0; x < segmentCommand64.nsects; x++)
+                {
+                    get_many_bytes(sectionAddress, &sectionCommand64, sizeof(struct section_64));
+                    if (strncmp(sectionCommand64.sectname, "__text", 16) == 0)
+                    {
+                        codeOffset = sectionCommand64.offset;
+                        break;
+                    }
+                    sectionAddress += sizeof(struct section_64);
+                }
+            }
+            else
+            {
+                codeOffset = segmentCommand64.fileoff;
+            }
+            // read and write the data
+            uint8_t *buf = (uint8_t*)qalloc(segmentCommand64.filesize);
+            get_many_bytes(cursorAddress + codeOffset, buf, segmentCommand64.filesize);
+            qfseek(outputFile, codeOffset, SEEK_SET);
+            qfwrite(outputFile, buf, segmentCommand64.filesize);
+            qfree(buf);
+        }
+        cmdsBaseAddress += loadCommand.cmdsize;
     }
     
-    
+    // all done, close file and free remaining buffers!
     qfclose(outputFile);
-
     qfree(mach_header);
+    qfree(mach_header64);
     qfree(loadcmdsBuffer);
-//    process_loadcmds(loadcommands, mh->ncmds, textSeg->startEA+mach_header_size, si, mh->cputype);
-    
+    msg("Mach-O binary extracted successfully!\n");
+    // it's over!
 	return;
 }
 
 char IDAP_comment[]	= "Plugin to extract Mach-O binaries from disassembly";
 char IDAP_help[]	= "Extract Mach-O";
 char IDAP_name[]	= "Extract Mach-O";
-char IDAP_hotkey[]	= "Alt-X";
+char IDAP_hotkey[]	= "";
 
 plugin_t PLUGIN =
 {

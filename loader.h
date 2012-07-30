@@ -1,22 +1,23 @@
 /*
+ * ___________         __                        __   
+ * \_   _____/__  ____/  |_____________    _____/  |_ 
+ *   |    __)_\  \/  /\   __\_  __ \__  \ _/ ___\   __\
+ *   |        \>    <  |  |  |  | \// __ \\  \___|  |  
+ *  /_______  /__/\_ \ |__|  |__|  (____  /\___  >__|  
+ *          \/      \/                  \/     \/      
  *    _____                .__              ________   
  *   /     \ _____    ____ |  |__           \_____  \  
  *  /  \ /  \\__  \ _/ ___\|  |  \   ______  /   |   \ 
  * /    Y    \/ __ \\  \___|   Y  \ /_____/ /    |    \
  * \____|__  (____  /\___  >___|  /         \_______  /
  *         \/     \/     \/     \/                  \/ 
- * __________.__               .__        
- * \______   \  |  __ __  ____ |__| ____  
- *  |     ___/  | |  |  \/ ___\|  |/    \ 
- *  |    |   |  |_|  |  / /_/  >  |   |  \
- *  |____|   |____/____/\___  /|__|___|  /
- *                     /_____/         \/ 
+ *  v0.1
  *
- * (c) 2011, fG! - reverser@put.as - http://reverse.put.as
+ * (c) 2012, fG! - reverser@put.as - http://reverse.put.as
  * 
- * -> You are free to use this code as long as you keep the original copyright <-
+ * An IDA plugin to extract Mach-O binaries inside code or data segments
  *
- * An IDA plugin to display Mach-O header information
+ * -> You are free to use this code as long as you keep the original copyright <-
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
