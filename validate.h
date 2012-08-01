@@ -70,7 +70,7 @@ struct fat_arch {
 
 #endif
 
-uint8_t validate_macho(void *buffer);
+uint8_t validate_macho(ea_t address);
 uint8_t validate_fat(struct fat_header fatHeader, ea_t position);
 
 #endif

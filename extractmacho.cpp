@@ -118,7 +118,8 @@ void IDAP_run(int arg)
     {
         char form[]="Choose output directory\n<~O~utput directory:F:1:64::>";
         char outputDir[MAXSTR] = "";
-        AskUsingForm_c(form, outputDir);
+        if (AskUsingForm_c(form, outputDir) == 0)
+            return;
         
         int findAddress = 0;
         char magic32Bits[] = "CE FA ED FE";
@@ -223,7 +224,7 @@ add_to_fat_list(ea_t address)
 }
 
 /*
- * entry function to extract fat and non-fat binaries
+ * entry function to validate and extract fat and non-fat binaries
  */
 uint8_t 
 extract_binary(ea_t address, char *outputFilename)
@@ -232,6 +233,11 @@ extract_binary(ea_t address, char *outputFilename)
     uint32 magicValue = get_long(address);
     if (magicValue == MH_MAGIC || magicValue == MH_MAGIC_64)
     {
+        if(validate_macho(address))
+        {
+            msg("[ERROR] Not a valid mach-o binary at %x\n", address);
+            return 1;
+        }
         // we just need to read mach_header.filetype so no problem in using the 32bit struct
         struct mach_header header;
         get_many_bytes(address, &header, sizeof(struct mach_header));
@@ -273,11 +279,6 @@ extract_mhobject(ea_t address, char *outputFilename)
             msg("[ERROR] Read bytes failed!\n");
             return 1;
         }
-        if (validate_macho((void*)mach_header))
-        {
-            msg("[ERROR] Not a valid mach-o binary at %x\n", address);
-            return 1;
-        }
     }
     else if (magicValue == MH_MAGIC_64)
     {
@@ -288,11 +289,6 @@ extract_mhobject(ea_t address, char *outputFilename)
         if(!get_many_bytes(address, mach_header64, sizeof(struct mach_header_64)))
         {
             msg("[ERROR] Read bytes failed!\n");
-            return 1;
-        }
-        if (validate_macho((void*)mach_header64))
-        {
-            msg("[ERROR] Not a valid mach-o binary at %x\n", address);
             return 1;
         }
         arch = 1;
@@ -470,11 +466,6 @@ extract_macho(ea_t address, char *outputFilename)
             msg("[ERROR] Read bytes failed!\n");
             return 1;
         }
-        if (validate_macho((void*)mach_header))
-        {
-            msg("[ERROR] Not a valid mach-o binary at %x\n", address);
-            return 1;
-        }
     }
     else if (magicValue == MH_MAGIC_64)
     {
@@ -485,11 +476,6 @@ extract_macho(ea_t address, char *outputFilename)
         if(!get_many_bytes(address, mach_header64, sizeof(struct mach_header_64)))
         {
             msg("[ERROR] Read bytes failed!\n");
-            return 1;
-        }
-        if (validate_macho((void*)mach_header64))
-        {
-            msg("[ERROR] Not a valid mach-o binary at %x\n", address);
             return 1;
         }
         arch = 1;

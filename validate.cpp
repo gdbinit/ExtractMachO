@@ -42,17 +42,23 @@
  * try to validate if a given address contains a valid mach-o file
  */
 uint8_t
-validate_macho(void *buffer)
+validate_macho(ea_t address)
 {
-    msg("Executing validate macho\n");
-    uint32_t magic = *(uint32_t*)buffer;
+    msg("Executing validate macho at address %x\n", address);
+    uint32_t magic = get_long(address);
+    
     // default is failure
     uint8_t retvalue = 1;
     if (magic == MH_MAGIC)
     {
         // validate cpu type
         struct mach_header header;
-        memcpy(&header, buffer, sizeof(struct mach_header));
+        // retrieve mach_header contents
+        if(!get_many_bytes(address, &header, sizeof(struct mach_header)))
+        {
+            msg("[ERROR] Read bytes failed!\n");
+            return 1;
+        }
         if (header.cputype == CPU_TYPE_I386)
         {
             // validate cpu sub type
@@ -75,7 +81,12 @@ validate_macho(void *buffer)
     {
         // validate cpu type
         struct mach_header_64 header64;
-        memcpy(&header64, buffer, sizeof(struct mach_header_64));
+        // retrieve mach_header contents
+        if(!get_many_bytes(address, &header64, sizeof(struct mach_header_64)))
+        {
+            msg("[ERROR] Read bytes failed!\n");
+            return 1;
+        }
         if (header64.cputype == CPU_TYPE_X86_64)
         {
             // validate cpu sub type
