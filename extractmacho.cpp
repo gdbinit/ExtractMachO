@@ -85,7 +85,7 @@ void IDAP_run(int arg)
     // so we can verify if it can be a mach-o binary
     ea_t cursorAddress = get_screen_ea();
 #if DEBUG
-    msg("[DEBUG] Cursor Address is %lx\n", cursorAddress);
+    msg("[DEBUG] Cursor Address is %x\n", cursorAddress);
 #endif
     uint32 magicValue = get_long(cursorAddress);
 #if DEBUG
@@ -137,7 +137,6 @@ void IDAP_run(int arg)
             findAddress = find_binary(findAddress, inf.maxEA, magicFat, 16, SEARCH_DOWN|SEARCH_NEXT);
             if (findAddress != BADADDR)
             {
-                msg("Found fat binary header at %x\n", findAddress);
                 add_to_fat_list(findAddress);
                 char output[MAXSTR];
                 qsnprintf(output, sizeof(output)-1, "%s/extracted_%x_%d_fat", outputDir, findAddress, findAddress);
@@ -145,18 +144,12 @@ void IDAP_run(int arg)
             }
         }
 
-        struct found_fat *f;
-        for (f = found_fat; f != NULL; f = (struct found_fat*)f->hh.next)
-        {
-            msg("aaaa %x \n", f->id);
-        }
         findAddress = 0;
         // look up 32 bits binaries
         while (findAddress != BADADDR)
         {
             findAddress = find_binary(findAddress, inf.maxEA, magic32Bits, 16, SEARCH_DOWN|SEARCH_NEXT);
             struct found_fat *f = NULL;
-            msg("lookning up address %x\n", findAddress);
             HASH_FIND(hh, found_fat, &findAddress, sizeof(ea_t), f);
             if (findAddress != BADADDR && f == NULL)
             {
@@ -171,7 +164,6 @@ void IDAP_run(int arg)
         {
             findAddress = find_binary(findAddress, inf.maxEA, magic64Bits, 16, SEARCH_DOWN|SEARCH_NEXT);
             struct found_fat *f = NULL;
-            msg("lookning up address %x\n", findAddress);
             HASH_FIND(hh, found_fat, &findAddress, sizeof(ea_t), f);
             if (findAddress != BADADDR && f == NULL)
             {

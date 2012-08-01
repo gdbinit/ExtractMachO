@@ -44,7 +44,9 @@
 uint8_t
 validate_macho(ea_t address)
 {
-    msg("Executing validate macho at address %x\n", address);
+#if DEBUG
+    msg("[DEBUG] Executing validate macho at address %x\n", address);
+#endif
     uint32_t magic = get_long(address);
     
     // default is failure
@@ -130,7 +132,9 @@ validate_fat(struct fat_header fatHeader, ea_t position)
         uint32_t nfat_arch = ntohl(fatHeader.nfat_arch);
         if (nfat_arch > 0)
         {
+#if DEBUG
             msg("[DEBUG] nr fat archs %d\n", ntohl(fatHeader.nfat_arch));
+#endif
             // we need to read the fat arch headers to validate
             ea_t address = position + sizeof(struct fat_header);
             for (uint32_t i = 0; i < nfat_arch; i++)
