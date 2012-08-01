@@ -256,6 +256,8 @@ extract_macho(ea_t address, char *outputFilename)
     struct mach_header *mach_header = NULL;
     struct mach_header_64 *mach_header64 = NULL;
     
+    uint8_t targetIsMHObject = 0;
+    
     uint8_t arch = 0;
     if (magicValue == MH_MAGIC)
     {
@@ -274,6 +276,9 @@ extract_macho(ea_t address, char *outputFilename)
             msg("[ERROR] Not a valid mach-o binary at %x\n", address);
             return 1;
         }
+        // MH_OBJECT is a more compact format so we need to treat it differently
+        if (mach_header->filetype == MH_OBJECT)
+            targetIsMHObject = 1;
     }
     else if (magicValue == MH_MAGIC_64)
     {
@@ -292,6 +297,8 @@ extract_macho(ea_t address, char *outputFilename)
             return 1;
         }
         arch = 1;
+        if (mach_header64->filetype == MH_OBJECT)
+            targetIsMHObject = 1;
     }
     
     // open output file
@@ -363,6 +370,28 @@ extract_macho(ea_t address, char *outputFilename)
                     sectionAddress += sizeof(struct section);
                 }
             }
+            else if (strncmp(segmentCommand.segname, "", 16) == 0 && targetIsMHObject)
+            {
+                ea_t sectionAddress = cmdsBaseAddress + sizeof(struct segment_command);
+                struct section sectionCommand; 
+                // iterate thru all sections to find the first code offset
+                // FIXME: we need to find the lowest one since the section info can be reordered
+                for (uint32_t x = 0; x < segmentCommand.nsects; x++)
+                {
+                    get_many_bytes(sectionAddress, &sectionCommand, sizeof(struct section));
+                    if (sectionCommand.nreloc > 0)
+                    {
+                        uint32_t size = sectionCommand.nreloc*sizeof(struct relocation_info);
+                        uint8_t *buf = (uint8_t*)qalloc(size);
+                        get_many_bytes(address + sectionCommand.reloff, buf, size);
+                        qfseek(outputFile, sectionCommand.reloff, SEEK_SET);
+                        qfwrite(outputFile, buf, size);
+                        qfree(buf);
+                    }
+                    sectionAddress += sizeof(struct section);
+                }
+                codeOffset = segmentCommand.fileoff;
+            }
             // for all other segments the fileoffset info in the LC_SEGMENT is valid so we can use it
             else
             {
@@ -375,6 +404,27 @@ extract_macho(ea_t address, char *outputFilename)
             qfseek(outputFile, codeOffset, SEEK_SET);
             qfwrite(outputFile, buf, segmentCommand.filesize);
             qfree(buf);
+        }
+        else if (loadCommand.cmd == LC_SYMTAB && targetIsMHObject)
+        {
+            struct symtab_command symtabCommand;
+            get_many_bytes(cmdsBaseAddress, &symtabCommand, sizeof(struct symtab_command));
+            if (symtabCommand.symoff > 0)
+            {
+                void *buf = qalloc(symtabCommand.nsyms*sizeof(struct nlist));
+                get_many_bytes(address + symtabCommand.symoff, buf, symtabCommand.nsyms*sizeof(struct nlist));
+                qfseek(outputFile, symtabCommand.symoff, SEEK_SET);
+                qfwrite(outputFile, buf, symtabCommand.nsyms*sizeof(struct nlist));
+                qfree(buf);
+            }
+            if (symtabCommand.stroff > 0)
+            {
+                void *buf = qalloc(symtabCommand.strsize);
+                get_many_bytes(address + symtabCommand.stroff, buf, symtabCommand.strsize);
+                qfseek(outputFile, symtabCommand.stroff, SEEK_SET);
+                qfwrite(outputFile, buf, symtabCommand.strsize);
+                qfree(buf);
+            }
         }
         // 64bits targets
         else if (loadCommand.cmd == LC_SEGMENT_64)

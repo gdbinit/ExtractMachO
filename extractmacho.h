@@ -46,6 +46,8 @@
 #ifdef __MAC__
 	#include <mach-o/loader.h>
     #include <mach-o/fat.h>
+    #include <mach-o/reloc.h>
+    #include <mach-o/nlist.h>
 #else
 	#include "loader.h"
 
