@@ -323,7 +323,6 @@ extract_mhobject(ea_t address, char *outputFilename)
     // and now process the load commands so we can retrieve code and data
     struct load_command loadCommand;
     ea_t cmdsBaseAddress = address + headerSize;    
-    ea_t codeOffset = 0;
     
     // read segments so we can write the code and data
     // only the segment commands have useful information
@@ -336,38 +335,29 @@ extract_mhobject(ea_t address, char *outputFilename)
         if (loadCommand.cmd == LC_SEGMENT)
         {
             get_many_bytes(cmdsBaseAddress, &segmentCommand, sizeof(struct segment_command));
-            if (strncmp(segmentCommand.segname, "", 16) == 0)
+            ea_t sectionAddress = cmdsBaseAddress + sizeof(struct segment_command);
+            struct section sectionCommand; 
+            // iterate thru all sections to find the first code offset
+            // FIXME: we need to find the lowest one since the section info can be reordered
+            for (uint32_t x = 0; x < segmentCommand.nsects; x++)
             {
-                ea_t sectionAddress = cmdsBaseAddress + sizeof(struct segment_command);
-                struct section sectionCommand; 
-                // iterate thru all sections to find the first code offset
-                // FIXME: we need to find the lowest one since the section info can be reordered
-                for (uint32_t x = 0; x < segmentCommand.nsects; x++)
+                get_many_bytes(sectionAddress, &sectionCommand, sizeof(struct section));
+                if (sectionCommand.nreloc > 0)
                 {
-                    get_many_bytes(sectionAddress, &sectionCommand, sizeof(struct section));
-                    if (sectionCommand.nreloc > 0)
-                    {
-                        uint32_t size = sectionCommand.nreloc*sizeof(struct relocation_info);
-                        uint8_t *buf = (uint8_t*)qalloc(size);
-                        get_many_bytes(address + sectionCommand.reloff, buf, size);
-                        qfseek(outputFile, sectionCommand.reloff, SEEK_SET);
-                        qfwrite(outputFile, buf, size);
-                        qfree(buf);
-                    }
-                    sectionAddress += sizeof(struct section);
+                    uint32_t size = sectionCommand.nreloc*sizeof(struct relocation_info);
+                    uint8_t *relocBuf = (uint8_t*)qalloc(size);
+                    get_many_bytes(address + sectionCommand.reloff, relocBuf, size);
+                    qfseek(outputFile, sectionCommand.reloff, SEEK_SET);
+                    qfwrite(outputFile, relocBuf, size);
+                    qfree(relocBuf);
                 }
-                codeOffset = segmentCommand.fileoff;
-            }
-            // for all other segments the fileoffset info in the LC_SEGMENT is valid so we can use it
-            else
-            {
-                codeOffset = segmentCommand.fileoff;
+                sectionAddress += sizeof(struct section);
             }
             // read and write the data
             uint8_t *buf = (uint8_t*)qalloc(segmentCommand.filesize);
-            get_many_bytes(address + codeOffset, buf, segmentCommand.filesize);
+            get_many_bytes(address + segmentCommand.fileoff, buf, segmentCommand.filesize);
             // always set the offset
-            qfseek(outputFile, codeOffset, SEEK_SET);
+            qfseek(outputFile, segmentCommand.fileoff, SEEK_SET);
             qfwrite(outputFile, buf, segmentCommand.filesize);
             qfree(buf);
         }
@@ -393,32 +383,30 @@ extract_mhobject(ea_t address, char *outputFilename)
             }
         }
         // 64bits targets
+        // FIXME: will this work ? needs to be tested :-)
         else if (loadCommand.cmd == LC_SEGMENT_64)
         {
             get_many_bytes(cmdsBaseAddress, &segmentCommand64, sizeof(struct segment_command_64));
-            if(strncmp(segmentCommand64.segname, "__TEXT", 16) == 0)
-            {
                 ea_t sectionAddress = cmdsBaseAddress + sizeof(struct segment_command_64);
                 struct section_64 sectionCommand64;
                 for (uint32_t x = 0; x < segmentCommand64.nsects; x++)
                 {
                     get_many_bytes(sectionAddress, &sectionCommand64, sizeof(struct section_64));
-                    if (strncmp(sectionCommand64.sectname, "__text", 16) == 0)
+                    if (sectionCommand64.nreloc > 0)
                     {
-                        codeOffset = sectionCommand64.offset;
-                        break;
+                        uint32_t size = sectionCommand64.nreloc*sizeof(struct relocation_info);
+                        uint8_t *relocBuf = (uint8_t*)qalloc(size);
+                        get_many_bytes(address + sectionCommand64.reloff, relocBuf, size);
+                        qfseek(outputFile, sectionCommand64.reloff, SEEK_SET);
+                        qfwrite(outputFile, relocBuf, size);
+                        qfree(relocBuf);
                     }
                     sectionAddress += sizeof(struct section_64);
                 }
-            }
-            else
-            {
-                codeOffset = segmentCommand64.fileoff;
-            }
             // read and write the data
             uint8_t *buf = (uint8_t*)qalloc(segmentCommand64.filesize);
-            get_many_bytes(address + codeOffset, buf, segmentCommand64.filesize);
-            qfseek(outputFile, codeOffset, SEEK_SET);
+            get_many_bytes(address + segmentCommand64.fileoff, buf, segmentCommand64.filesize);
+            qfseek(outputFile, segmentCommand64.fileoff, SEEK_SET);
             qfwrite(outputFile, buf, segmentCommand64.filesize);
             qfree(buf);
         }
@@ -520,6 +508,7 @@ extract_macho(ea_t address, char *outputFilename)
         struct segment_command segmentCommand;
         struct segment_command_64 segmentCommand64;
         // 32bits targets
+        // FIXME: do we also need to dump the relocs info here ?
         if (loadCommand.cmd == LC_SEGMENT)
         {
             get_many_bytes(cmdsBaseAddress, &segmentCommand, sizeof(struct segment_command));
