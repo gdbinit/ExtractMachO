@@ -36,8 +36,23 @@
  */
 
 #include "extractmacho.h"
+#include "validate.h"
+#include "uthash.h"
 
-#define DEBUG 0
+#define DEBUG 1
+
+uint8_t extract_macho(ea_t address, char *outputFilename);
+uint8_t extract_fat(ea_t address, char *outputFilename);
+uint8_t extract_binary(ea_t address, char *outputFilename);
+void add_to_fat_list(ea_t address);
+
+struct found_fat
+{
+    ea_t id;
+    UT_hash_handle hh;
+};
+
+struct found_fat *found_fat = NULL;
 
 int IDAP_init(void)
 {
@@ -69,15 +84,179 @@ void IDAP_run(int arg)
     // so we can verify if it can be a mach-o binary
     ea_t cursorAddress = get_screen_ea();
 #if DEBUG
-    msg("[DEBUG] Cursor Address is %llx\n", cursorAddress);
+    msg("[DEBUG] Cursor Address is %lx\n", cursorAddress);
 #endif
     uint32 magicValue = get_long(cursorAddress);
+#if DEBUG
+    msg("[DEBUG] Magic value: %x\n", magicValue);
+#endif
+    
+    uint8_t globalSearch = 1;
+    char *outputFilename = NULL;
+    // test if current cursor position has a valid mach-o
+    // if yes, ask user if he wants to extract only this one or search for all
+#if 1
+    if (magicValue == MH_MAGIC || magicValue == MH_MAGIC_64 || magicValue == FAT_CIGAM)
+    {
+        int answer = askyn_c(0, "Current location contains a potential Mach-O binary! Attempt to extract only this one?");
+        // user wants to extract this binary
+        if (answer == 1)
+        {
+            // ask for output location & name
+            // ask for output filename
+            outputFilename = askfile_c(1, NULL, "Select output file...");
+            if (outputFilename == NULL || outputFilename[0] == 0)
+                return;
+            extract_binary(cursorAddress, outputFilename);
+            return;
+        }
+        globalSearch = answer ? 0 : 1;
+    }
+
+    if (globalSearch)
+    {
+        char form[]="Choose output directory\n<~O~utput directory:F:1:64::>";
+        char outputDir[MAXSTR] = "";
+        AskUsingForm_c(form, outputDir);
+        
+        int findAddress = 0;
+        char magic32Bits[] = "CE FA ED FE";
+        char magic64Bits[] = "CF FA ED FE";
+        char magicFat[]    = "CA FE BA BE";
+        
+        // we have a small problem here
+        // fat archives contain valid mach-o binaries so they will be found if we search for fat and non-fat binaries
+        // solution is to first lookup the fat archives and add the binaries location to a list
+        // then match against that list when searching for non-fat binaries and skip extraction if it's on that list
+
+        // lookup fat archives
+        while (findAddress != BADADDR)
+        {
+            findAddress = find_binary(findAddress, inf.maxEA, magicFat, 16, SEARCH_DOWN|SEARCH_NEXT);
+            if (findAddress != BADADDR)
+            {
+                msg("Found fat binary header at %x\n", findAddress);
+                add_to_fat_list(findAddress);
+                char output[MAXSTR];
+                qsnprintf(output, sizeof(output)-1, "%s/extracted_%x_%d_fat", outputDir, findAddress, findAddress);
+                extract_binary(findAddress, output);
+            }
+        }
+
+        struct found_fat *f;
+        for (f = found_fat; f != NULL; f = (struct found_fat*)f->hh.next)
+        {
+            msg("aaaa %x \n", f->id);
+        }
+        findAddress = 0;
+        // look up 32 bits binaries
+        while (findAddress != BADADDR)
+        {
+            findAddress = find_binary(findAddress, inf.maxEA, magic32Bits, 16, SEARCH_DOWN|SEARCH_NEXT);
+            struct found_fat *f = NULL;
+            msg("lookning up address %x\n", findAddress);
+            HASH_FIND(hh, found_fat, &findAddress, sizeof(ea_t), f);
+            if (findAddress != BADADDR && f == NULL)
+            {
+                char output[MAXSTR];
+                qsnprintf(output, sizeof(output)-1, "%s/extracted_%x_%d", outputDir, findAddress, findAddress);
+                extract_binary(findAddress, output);
+            }
+        }
+        findAddress = 0;
+        // look up 64 bits binaries
+        while (findAddress != BADADDR)
+        {
+            findAddress = find_binary(findAddress, inf.maxEA, magic64Bits, 16, SEARCH_DOWN|SEARCH_NEXT);
+            struct found_fat *f = NULL;
+            msg("lookning up address %x\n", findAddress);
+            HASH_FIND(hh, found_fat, &findAddress, sizeof(ea_t), f);
+            if (findAddress != BADADDR && f == NULL)
+            {
+                char output[MAXSTR];
+                qsnprintf(output, sizeof(output)-1, "%s/extracted_%x_%d", outputDir, findAddress, findAddress);
+                extract_binary(findAddress, output);
+            }
+        }
+    }
+#endif
+
+    msg("Successful extraction!\n");
+    // it's over!
+	return;
+}
+
+/*
+ * build a list of binaries location inside a fat archive so we don't extract binaries inside fat archives
+ * while searching for non-fat binaries
+ */
+void
+add_to_fat_list(ea_t address)
+{
+    // process the fat structures
+    struct fat_header fatHeader;
+    get_many_bytes(address, &fatHeader, sizeof(struct fat_header));
+    if (fatHeader.magic == FAT_CIGAM)
+    {
+        // fat headers are always big endian!
+        uint32_t nfat_arch = ntohl(fatHeader.nfat_arch);
+        if (nfat_arch > 0)
+        {
+            // we need to read the fat arch headers to validate
+            ea_t archAddress = address + sizeof(struct fat_header);
+            for (uint32_t i = 0; i < nfat_arch; i++)
+            {
+                struct fat_arch fatArch;
+                get_many_bytes(archAddress, &fatArch, sizeof(struct fat_arch));
+                // binary is located at start of fat magic plus offset found in the fat_arch structure
+                ea_t binLocation = address + ntohl(fatArch.offset);
+                
+                struct found_fat *new_found_fat = (struct found_fat*)qalloc(sizeof(struct found_fat));
+                new_found_fat->id = binLocation;
+                HASH_ADD_INT(found_fat, id, new_found_fat);
+                archAddress += sizeof(struct fat_arch);
+            }
+        }
+    }
+
+}
+
+/*
+ * entry function to extract fat and non-fat binaries
+ */
+uint8_t 
+extract_binary(ea_t address, char *outputFilename)
+{
+    uint8_t retValue = 0;
+    uint32 magicValue = get_long(address);
+    if (magicValue == MH_MAGIC || magicValue == MH_MAGIC_64)
+    {
+       retValue = extract_macho(address, outputFilename);
+    }
+    else if (magicValue == FAT_CIGAM)
+    {
+       retValue = extract_fat(address, outputFilename);
+    }
+    else    
+    {
+        msg("[ERROR] No potentially valid mach-o binary at current location!\n");
+        retValue = 1;
+    }
+    return retValue;
+}
+
+/*
+ * function to extract non-fat binaries, 32 and 64bits
+ */
+uint8_t 
+extract_macho(ea_t address, char *outputFilename)
+{
+    uint32 magicValue = get_long(address);
     
     struct mach_header *mach_header = NULL;
     struct mach_header_64 *mach_header64 = NULL;
     
     uint8_t arch = 0;
-    uint8_t fat = 0; 
     if (magicValue == MH_MAGIC)
     {
 #if DEBUG
@@ -85,10 +264,15 @@ void IDAP_run(int arg)
 #endif
         mach_header = (struct mach_header *)qalloc(sizeof(struct mach_header));
         // retrieve mach_header contents
-        if(!get_many_bytes(cursorAddress, mach_header, sizeof(struct mach_header)))
+        if(!get_many_bytes(address, mach_header, sizeof(struct mach_header)))
         {
             msg("[ERROR] Read bytes failed!\n");
-            return;
+            return 1;
+        }
+        if (validate_macho((void*)mach_header))
+        {
+            msg("[ERROR] Not a valid mach-o binary at %x\n", address);
+            return 1;
         }
     }
     else if (magicValue == MH_MAGIC_64)
@@ -97,34 +281,25 @@ void IDAP_run(int arg)
         msg("[DEBUG] Target is 64bits!\n");
 #endif
         mach_header64 = (struct mach_header_64 *)qalloc(sizeof(struct mach_header_64));
-        if(!get_many_bytes(cursorAddress, mach_header64, sizeof(struct mach_header_64)))
+        if(!get_many_bytes(address, mach_header64, sizeof(struct mach_header_64)))
         {
             msg("[ERROR] Read bytes failed!\n");
-            return;
+            return 1;
+        }
+        if (validate_macho((void*)mach_header64))
+        {
+            msg("[ERROR] Not a valid mach-o binary at %x\n", address);
+            return 1;
         }
         arch = 1;
     }
-    // FIXME: implement FAT binary support
-    else if (magicValue == FAT_CIGAM)
-    {
-        fat = 1;
-    }
-    else    
-    {
-        msg("[ERROR] No potentially valid mach-o binary at current location!\n");
-        return;
-    }
-
-    // ask for output filename
-    char *outputFilename = askfile_c(1, NULL, "Select output file...");
-    if (outputFilename == NULL || outputFilename[0] == 0)
-        return;
     
+    // open output file
     FILE *outputFile = qfopen(outputFilename, "wb+");
     if (outputFile == NULL)
     {
         msg("[ERROR] Could not open %s file!\n", outputFilename);
-        return;
+        return 1;
     }
     
     /*
@@ -139,7 +314,7 @@ void IDAP_run(int arg)
         qfwrite(outputFile, mach_header64, sizeof(struct mach_header_64));
     else
         qfwrite(outputFile, mach_header, sizeof(struct mach_header));
-
+    
     // read the load commands
     uint32_t ncmds = arch ? mach_header64->ncmds : mach_header->ncmds;
     uint32_t sizeofcmds = arch ? mach_header64->sizeofcmds : mach_header->sizeofcmds;
@@ -148,14 +323,14 @@ void IDAP_run(int arg)
     uint8_t *loadcmdsBuffer = NULL;
     loadcmdsBuffer = (uint8_t*)qalloc(sizeofcmds);
     
-    get_many_bytes(cursorAddress + headerSize, loadcmdsBuffer, sizeofcmds);
+    get_many_bytes(address + headerSize, loadcmdsBuffer, sizeofcmds);
     // write all the load commands block to the output file
     // only LC_SEGMENT commands contain further data
     qfwrite(outputFile, loadcmdsBuffer, sizeofcmds);
-
+    
     // and now process the load commands so we can retrieve code and data
     struct load_command loadCommand;
-    ea_t cmdsBaseAddress = cursorAddress + headerSize;    
+    ea_t cmdsBaseAddress = address + headerSize;    
     ea_t codeOffset = 0;
     
     // read segments so we can write the code and data
@@ -195,7 +370,7 @@ void IDAP_run(int arg)
             }
             // read and write the data
             uint8_t *buf = (uint8_t*)qalloc(segmentCommand.filesize);
-            get_many_bytes(cursorAddress + codeOffset, buf, segmentCommand.filesize);
+            get_many_bytes(address + codeOffset, buf, segmentCommand.filesize);
             // always set the offset
             qfseek(outputFile, codeOffset, SEEK_SET);
             qfwrite(outputFile, buf, segmentCommand.filesize);
@@ -226,7 +401,7 @@ void IDAP_run(int arg)
             }
             // read and write the data
             uint8_t *buf = (uint8_t*)qalloc(segmentCommand64.filesize);
-            get_many_bytes(cursorAddress + codeOffset, buf, segmentCommand64.filesize);
+            get_many_bytes(address + codeOffset, buf, segmentCommand64.filesize);
             qfseek(outputFile, codeOffset, SEEK_SET);
             qfwrite(outputFile, buf, segmentCommand64.filesize);
             qfree(buf);
@@ -239,9 +414,51 @@ void IDAP_run(int arg)
     qfree(mach_header);
     qfree(mach_header64);
     qfree(loadcmdsBuffer);
-    msg("Mach-O binary extracted successfully!\n");
-    // it's over!
-	return;
+    return 0;
+}
+
+/*
+ * function to extract fat archives
+ */
+uint8_t 
+extract_fat(ea_t address, char *outputFilename)
+{
+#if DEBUG
+    msg("[DEBUG] Target is a fat binary!\n");
+#endif
+    struct fat_header fatHeader;
+    get_many_bytes(address, &fatHeader, sizeof(struct fat_header));
+    validate_fat(fatHeader, address);
+    // for fat binaries things are much easier to dump
+    // since the fat_arch struct contains total size of the binary :-)
+    // open output file
+    FILE *outputFile = qfopen(outputFilename, "wb+");
+    if (outputFile == NULL)
+    {
+        msg("[ERROR] Could not open %s file!\n", outputFilename);
+        return 1;
+    }
+    // write fat_header
+    qfwrite(outputFile, &fatHeader, sizeof(struct fat_header));
+    // read fat_arch
+    ea_t fatArchAddress = address + sizeof(struct fat_header);
+    void *tempBuf = qalloc(sizeof(struct fat_arch)*ntohl(fatHeader.nfat_arch));
+    get_many_bytes(fatArchAddress, tempBuf, sizeof(struct fat_arch)*ntohl(fatHeader.nfat_arch));
+    qfwrite(outputFile, tempBuf, sizeof(struct fat_arch)*ntohl(fatHeader.nfat_arch));
+    
+    for (uint32_t i = 0; i < ntohl(fatHeader.nfat_arch) ; i++)
+    {
+        struct fat_arch tempFatArch;        
+        get_many_bytes(fatArchAddress, &tempFatArch, sizeof(struct fat_arch));
+        void *tempBuf = qalloc(ntohl(tempFatArch.size));
+        get_many_bytes(address+ntohl(tempFatArch.offset), tempBuf, ntohl(tempFatArch.size));
+        qfseek(outputFile, ntohl(tempFatArch.offset), SEEK_SET);
+        qfwrite(outputFile, tempBuf, ntohl(tempFatArch.size));
+        fatArchAddress += sizeof(struct fat_arch);
+    }
+    qfree(tempBuf);
+    qfclose(outputFile);
+    return 0;
 }
 
 char IDAP_comment[]	= "Plugin to extract Mach-O binaries from disassembly";

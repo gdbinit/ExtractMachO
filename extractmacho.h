@@ -11,7 +11,6 @@
  * /    Y    \/ __ \\  \___|   Y  \ /_____/ /    |    \
  * \____|__  (____  /\___  >___|  /         \_______  /
  *         \/     \/     \/     \/                  \/ 
- *  v0.1
  *
  * (c) 2012, fG! - reverser@put.as - http://reverse.put.as
  * 
@@ -41,6 +40,7 @@
 #include <loader.hpp>
 #include <bytes.hpp>
 #include <kernwin.hpp>
+#include <search.hpp>
 
 // OS X includes
 #ifdef __MAC__
