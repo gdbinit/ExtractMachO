@@ -603,11 +603,16 @@ uint8_t
 extract_fat(ea_t address, char *outputFilename)
 {
 #if DEBUG
-    msg("[DEBUG] Target is a fat binary!\n");
+    msg("[DEBUG] Trying to extract a fat binary target!\n");
 #endif
     struct fat_header fatHeader;
-    get_many_bytes(address, &fatHeader, sizeof(struct fat_header));
-    validate_fat(fatHeader, address);
+    if(!get_many_bytes(address, &fatHeader, sizeof(struct fat_header)))
+    {
+        msg("[ERROR] Read bytes failed!\n");
+        return 1;
+    }
+    if(validate_fat(fatHeader, address))
+        return 1;
     // for fat binaries things are much easier to dump
     // since the fat_arch struct contains total size of the binary :-)
     // open output file
@@ -621,21 +626,40 @@ extract_fat(ea_t address, char *outputFilename)
     qfwrite(outputFile, &fatHeader, sizeof(struct fat_header));
     // read fat_arch
     ea_t fatArchAddress = address + sizeof(struct fat_header);
-    void *tempBuf = qalloc(sizeof(struct fat_arch)*ntohl(fatHeader.nfat_arch));
-    get_many_bytes(fatArchAddress, tempBuf, sizeof(struct fat_arch)*ntohl(fatHeader.nfat_arch));
-    qfwrite(outputFile, tempBuf, sizeof(struct fat_arch)*ntohl(fatHeader.nfat_arch));
-    
+    uint32_t fatArchSize = sizeof(struct fat_arch)*ntohl(fatHeader.nfat_arch);
+    // write all fat_arch structs
+    void *fatArchBuf = qalloc(fatArchSize);
+    if(!get_many_bytes(fatArchAddress, fatArchBuf, fatArchSize))
+    {
+        msg("[ERROR] Read bytes failed!\n");
+        return 1;
+    }
+    qfwrite(outputFile, fatArchBuf, fatArchSize);
+    qfree(fatArchBuf);
+    // write the mach-o binaries inside the fat archive
     for (uint32_t i = 0; i < ntohl(fatHeader.nfat_arch) ; i++)
     {
-        struct fat_arch tempFatArch;        
-        get_many_bytes(fatArchAddress, &tempFatArch, sizeof(struct fat_arch));
+        struct fat_arch tempFatArch;
+        // read the fat_arch struct
+        if(!get_many_bytes(fatArchAddress, &tempFatArch, sizeof(struct fat_arch)))
+        {
+            msg("[ERROR] Read bytes failed!\n");
+            return 1;
+        }
+        // read and write the mach-o binary pointed by each fat_arch struct
         void *tempBuf = qalloc(ntohl(tempFatArch.size));
-        get_many_bytes(address+ntohl(tempFatArch.offset), tempBuf, ntohl(tempFatArch.size));
+        if(!get_many_bytes(address+ntohl(tempFatArch.offset), tempBuf, ntohl(tempFatArch.size)))
+        {
+            msg("[ERROR] Read bytes failed!\n");
+            return 1;
+        }
         qfseek(outputFile, ntohl(tempFatArch.offset), SEEK_SET);
         qfwrite(outputFile, tempBuf, ntohl(tempFatArch.size));
+        qfree(tempBuf);
+        // advance to next fat_arch struct
         fatArchAddress += sizeof(struct fat_arch);
     }
-    qfree(tempBuf);
+    // all done
     qfclose(outputFile);
     return 0;
 }
