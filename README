@@ -11,16 +11,18 @@
  /    Y    \/ __ \\  \___|   Y  \ /_____/ /    |    \
  \____|__  (____  /\___  >___|  /         \_______  /
          \/     \/     \/     \/                  \/ 
-  v0.1
+  v0.2
 
  (c) 2012, fG! - reverser@put.as - http://reverse.put.as
 
-This is a very simple IDA plugin to extract a Mach-O binary contained anywhere in the disassembly.
+This is a very simple IDA plugin to extract all Mach-O binaries contained anywhere in the disassembly.
 
-For now it is able to extract isolated 32 and 64bits binaries, not fat binaries.
-Support for fat binaries will be added soon.
+It supports 32 and 64bits binaries, and also fat binaries!
 
-You need to position the cursor at the binary start address (Mach-O magic values 0xFEEDFACE or 0xFEEDFACF).
+The default behavior is to search all the IDA database for Mach-O binaries.
+
+If you position the cursor at a Mach-O binary start address (Mach-O magic values 0xFEEDFACE or 0xFEEDFACF),
+it will ask if you want to dump that specific binary. If you say no, it will fallback to default behavior.
 
 Tested with IDA 6.3 Mac OS X version.
 
@@ -52,4 +54,6 @@ That's it! Enjoy :-)
 fG!
 
 v0.1 - Initial version that supports 32 and 64bits isolated binaries.
-	 
+v0.2 - Support for fat binaries and ability to search all IDA database for binaries to be extracted.
+       Now it's able to extract 32bit kernel extensions, which use MH_OBJECT file format.
+       
