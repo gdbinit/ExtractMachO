@@ -48,6 +48,7 @@
 #else
 #include "loader.h"
 
+// these are the contents of fat.h that we need
 #define FAT_MAGIC       0xcafebabe
 #define FAT_CIGAM       0xbebafeca      /* NXSwapLong(FAT_MAGIC) */
 
@@ -63,6 +64,43 @@ struct fat_arch {
     uint32_t        size;           /* size of this object file */
     uint32_t        align;          /* alignment as a power of 2 */
 };
+
+// from reloc.h
+struct relocation_info {
+    int32_t      r_address;      /* offset in the section to what is being
+                                  relocated */
+    uint32_t     r_symbolnum:24, /* symbol index if r_extern == 1 or section
+                                  ordinal if r_extern == 0 */
+r_pcrel:1,      /* was relocated pc relative already */
+r_length:2,     /* 0=byte, 1=word, 2=long, 3=quad */
+r_extern:1,     /* does not include value of sym referenced */
+r_type:4;       /* if not 0, machine specific relocation type */
+};
+
+// from nlist.h
+struct nlist {
+    union {
+#ifndef __LP64__
+        char *n_name;   /* for use when in-core */
+#endif
+        int32_t n_strx; /* index into the string table */
+    } n_un;
+    uint8_t n_type;         /* type flag, see below */
+    uint8_t n_sect;         /* section number or NO_SECT */
+    int16_t n_desc;         /* see <mach-o/stab.h> */
+    uint32_t n_value;       /* value of this symbol (or stab offset) */
+};
+
+struct nlist_64 {
+    union {
+        uint32_t  n_strx; /* index into the string table */
+    } n_un;
+    uint8_t n_type;        /* type flag, see below */
+    uint8_t n_sect;        /* section number or NO_SECT */
+    uint16_t n_desc;       /* see <mach-o/stab.h> */
+    uint64_t n_value;      /* value of this symbol (or stab offset) */
+};
+
 
 #endif
 
