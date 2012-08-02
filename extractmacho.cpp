@@ -100,19 +100,13 @@ void IDAP_run(int arg)
     // retrieve current cursor address and it's value
     // so we can verify if it can be a mach-o binary
     ea_t cursorAddress = get_screen_ea();
-#if DEBUG
-    msg("[DEBUG] Cursor Address is %x\n", cursorAddress);
-#endif
     uint32 magicValue = get_long(cursorAddress);
-#if DEBUG
-    msg("[DEBUG] Magic value: %x\n", magicValue);
-#endif
     
     uint8_t globalSearch = 1;
     char *outputFilename = NULL;
     // test if current cursor position has a valid mach-o
     // if yes, ask user if he wants to extract only this one or search for all
-#if 1
+
     if (magicValue == MH_MAGIC || magicValue == MH_MAGIC_64 || magicValue == FAT_CIGAM)
     {
         int answer = askyn_c(0, "Current location contains a potential Mach-O binary! Attempt to extract only this one?");
@@ -127,6 +121,10 @@ void IDAP_run(int arg)
             do_report();
             return;
         }
+        // cancelled
+        if (answer == -1)
+            return;
+        
         globalSearch = answer ? 0 : 1;
     }
 
@@ -134,6 +132,7 @@ void IDAP_run(int arg)
     {
         char form[]="Choose output directory\n<~O~utput directory:F:1:64::>";
         char outputDir[MAXSTR] = "";
+        // cancelled
         if (AskUsingForm_c(form, outputDir) == 0)
             return;
         
@@ -190,7 +189,7 @@ void IDAP_run(int arg)
             }
         }
     }
-#endif
+
     // output a final report of what happened
     do_report();
     // it's over!
