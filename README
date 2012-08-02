@@ -11,7 +11,7 @@
  /    Y    \/ __ \\  \___|   Y  \ /_____/ /    |    \
  \____|__  (____  /\___  >___|  /         \_______  /
          \/     \/     \/     \/                  \/ 
-  v0.2
+  v1.0
 
  (c) 2012, fG! - reverser@put.as - http://reverse.put.as
 
@@ -56,4 +56,5 @@ fG!
 v0.1 - Initial version that supports 32 and 64bits isolated binaries.
 v0.2 - Support for fat binaries and ability to search all IDA database for binaries to be extracted.
        Now it's able to extract 32bit kernel extensions, which use MH_OBJECT file format.
-       
+v1.0 - Add report capabilities.
+       Cleanups and small fixes.

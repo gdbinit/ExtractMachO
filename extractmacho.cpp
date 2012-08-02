@@ -11,7 +11,7 @@
  * /    Y    \/ __ \\  \___|   Y  \ /_____/ /    |    \
  * \____|__  (____  /\___  >___|  /         \_______  /
  *         \/     \/     \/     \/                  \/ 
- *  v0.1
+ *  v1.0
  *
  * (c) 2012, fG! - reverser@put.as - http://reverse.put.as
  * 
@@ -40,6 +40,7 @@
 #include "validate.h"
 #include "uthash.h"
 
+#define VERSION "1.0"
 //#define DEBUG 0
 
 uint8_t extract_binary(ea_t address, char *outputFilename);
@@ -73,6 +74,10 @@ struct report *report = NULL;
 
 int IDAP_init(void)
 {
+    msg("----------------------------------\n");
+    msg("Extract Mach-O plugin loaded, v%s\n", VERSION);
+    msg("(c) fG!, 2012 - reverser@put.as\n");
+    msg("----------------------------------\n");
 //    if (inf.filetype != f_MACHO)
 //    {
 //		// if it's not mach-o binary then plugin is unavailable
