@@ -155,7 +155,7 @@ void IDAP_run(int arg)
             {
                 add_to_fat_list(findAddress);
                 char output[MAXSTR];
-                qsnprintf(output, sizeof(output)-1, "%s/extracted_%x_%d_fat", outputDir, findAddress, findAddress);
+                qsnprintf(output, sizeof(output)-1, "%s/extracted_offset_0x%x_fat", outputDir, findAddress);
                 extract_binary(findAddress, output);
             }
         }
@@ -170,7 +170,7 @@ void IDAP_run(int arg)
             if (findAddress != BADADDR && f == NULL)
             {
                 char output[MAXSTR];
-                qsnprintf(output, sizeof(output)-1, "%s/extracted_%x_%d", outputDir, findAddress, findAddress);
+                qsnprintf(output, sizeof(output)-1, "%s/extracted_offset_0x%x_32bits", outputDir, findAddress);
                 extract_binary(findAddress, output);
             }
         }
@@ -184,7 +184,7 @@ void IDAP_run(int arg)
             if (findAddress != BADADDR && f == NULL)
             {
                 char output[MAXSTR];
-                qsnprintf(output, sizeof(output)-1, "%s/extracted_%x_%d", outputDir, findAddress, findAddress);
+                qsnprintf(output, sizeof(output)-1, "%s/extracted_offset_0x%x_64bits", outputDir, findAddress);
                 extract_binary(findAddress, output);
             }
         }
