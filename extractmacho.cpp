@@ -143,9 +143,9 @@ void IDAP_run(int arg)
         
         // we want to avoid dumping itself so we start at one byte ahead of the first address in the database
         int findAddress = inf.minEA+1;
-        char magic32Bits[] = "CE FA ED FE";
-        char magic64Bits[] = "CF FA ED FE";
-        char magicFat[]    = "CA FE BA BE";
+        uchar magic32Bits[] = "\xCE\xFA\xED\xFE";
+        uchar magic64Bits[] = "\xCF\xFA\xED\xFE";
+        uchar magicFat[]    = "\xCA\xFE\xBA\xBE";
         
         // we have a small problem here
         // fat archives contain valid mach-o binaries so they will be found if we search for fat and non-fat binaries
@@ -155,13 +155,14 @@ void IDAP_run(int arg)
         // lookup fat archives
         while (findAddress != BADADDR)
         {
-            findAddress = find_binary(findAddress, inf.maxEA, magicFat, 16, SEARCH_DOWN|SEARCH_NEXT);
+            findAddress = bin_search(findAddress, inf.maxEA, magicFat, NULL, 4, BIN_SEARCH_FORWARD, BIN_SEARCH_NOCASE);
             if (findAddress != BADADDR)
             {
                 add_to_fat_list(findAddress);
                 char output[MAXSTR];
                 qsnprintf(output, sizeof(output)-1, "%s/extracted_offset_0x%x_fat", outputDir, findAddress);
                 extract_binary(findAddress, output);
+                findAddress += 1;
             }
         }
 
@@ -169,7 +170,7 @@ void IDAP_run(int arg)
         // look up 32 bits binaries
         while (findAddress != BADADDR)
         {
-            findAddress = find_binary(findAddress, inf.maxEA, magic32Bits, 16, SEARCH_DOWN|SEARCH_NEXT);
+            findAddress = bin_search(findAddress, inf.maxEA, magic32Bits, NULL, 4, BIN_SEARCH_FORWARD, BIN_SEARCH_NOCASE);
             struct found_fat *f = NULL;
             HASH_FIND(hh, found_fat, &findAddress, sizeof(ea_t), f);
             if (findAddress != BADADDR && f == NULL)
@@ -177,13 +178,17 @@ void IDAP_run(int arg)
                 char output[MAXSTR];
                 qsnprintf(output, sizeof(output)-1, "%s/extracted_offset_0x%x_32bits", outputDir, findAddress);
                 extract_binary(findAddress, output);
+                findAddress += 1;
             }
+            // we need to advance anyway in case binary is in the fat list
+            else if (findAddress != BADADDR)
+                findAddress += 1;
         }
         findAddress = inf.minEA+1;
         // look up 64 bits binaries
         while (findAddress != BADADDR)
         {
-            findAddress = find_binary(findAddress, inf.maxEA, magic64Bits, 16, SEARCH_DOWN|SEARCH_NEXT);
+            findAddress = bin_search(findAddress, inf.maxEA, magic64Bits, NULL, 4, BIN_SEARCH_FORWARD, BIN_SEARCH_NOCASE);
             struct found_fat *f = NULL;
             HASH_FIND(hh, found_fat, &findAddress, sizeof(ea_t), f);
             if (findAddress != BADADDR && f == NULL)
@@ -191,7 +196,10 @@ void IDAP_run(int arg)
                 char output[MAXSTR];
                 qsnprintf(output, sizeof(output)-1, "%s/extracted_offset_0x%x_64bits", outputDir, findAddress);
                 extract_binary(findAddress, output);
+                findAddress += 1;
             }
+            else if (findAddress != BADADDR)
+                findAddress += 1;
         }
     }
 
@@ -224,7 +232,7 @@ extract_binary(ea_t address, char *outputFilename)
             retValue = extract_mhobject(address, outputFilename);
         else
             retValue = extract_macho(address, outputFilename);
-        
+
         add_to_hits_list(address, magicValue == MH_MAGIC ? TARGET_32 : TARGET_64, retValue);
     }
     else if (magicValue == FAT_CIGAM)
