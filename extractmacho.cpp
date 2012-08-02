@@ -42,9 +42,6 @@
 
 //#define DEBUG 0
 
-uint8_t extract_macho(ea_t address, char *outputFilename);
-uint8_t extract_mhobject(ea_t address, char *outputFilename);
-uint8_t extract_fat(ea_t address, char *outputFilename);
 uint8_t extract_binary(ea_t address, char *outputFilename);
 void add_to_fat_list(ea_t address);
 void add_to_hits_list(ea_t address, uint8_t type, uint8_t extracted);
@@ -200,10 +197,55 @@ void IDAP_run(int arg)
 	return;
 }
 
+/*
+ * entry function to validate and extract fat and non-fat binaries
+ */
+uint8_t 
+extract_binary(ea_t address, char *outputFilename)
+{
+    uint8_t retValue = 0;
+    uint32 magicValue = get_long(address);
+    if (magicValue == MH_MAGIC || magicValue == MH_MAGIC_64)
+    {
+        if(validate_macho(address))
+        {
+            msg("[ERROR] Not a valid mach-o binary at %x\n", address);
+            add_to_hits_list(address, magicValue == MH_MAGIC ? TARGET_32 : TARGET_64, 1);
+            return 1;
+        }
+        // we just need to read mach_header.filetype so no problem in using the 32bit struct
+        struct mach_header header;
+        get_many_bytes(address, &header, sizeof(struct mach_header));
+        if (header.filetype == MH_OBJECT)
+            retValue = extract_mhobject(address, outputFilename);
+        else
+            retValue = extract_macho(address, outputFilename);
+        
+        add_to_hits_list(address, magicValue == MH_MAGIC ? TARGET_32 : TARGET_64, retValue);
+    }
+    else if (magicValue == FAT_CIGAM)
+    {
+        retValue = extract_fat(address, outputFilename);
+        add_to_hits_list(address, TARGET_FAT, retValue);
+    }
+    else    
+    {
+        msg("[ERROR] No potentially valid mach-o binary at current location!\n");
+        retValue = 1;
+    }
+    return retValue;
+}
+
+/*
+ * sorter
+ */
 int id_sort(struct report *a, struct report *b) {
     return (a->id - b->id);
 }
 
+/*
+ * output final extraction report
+ */
 void
 do_report(void)
 {
@@ -264,48 +306,7 @@ add_to_fat_list(ea_t address)
             }
         }
     }
-
 }
-
-/*
- * entry function to validate and extract fat and non-fat binaries
- */
-uint8_t 
-extract_binary(ea_t address, char *outputFilename)
-{
-    uint8_t retValue = 0;
-    uint32 magicValue = get_long(address);
-    if (magicValue == MH_MAGIC || magicValue == MH_MAGIC_64)
-    {
-        if(validate_macho(address))
-        {
-            msg("[ERROR] Not a valid mach-o binary at %x\n", address);
-            add_to_hits_list(address, magicValue == MH_MAGIC ? TARGET_32 : TARGET_64, 1);
-            return 1;
-        }
-        // we just need to read mach_header.filetype so no problem in using the 32bit struct
-        struct mach_header header;
-        get_many_bytes(address, &header, sizeof(struct mach_header));
-        if (header.filetype == MH_OBJECT)
-            retValue = extract_mhobject(address, outputFilename);
-        else
-            retValue = extract_macho(address, outputFilename);
-        
-        add_to_hits_list(address, magicValue == MH_MAGIC ? TARGET_32 : TARGET_64, retValue);
-    }
-    else if (magicValue == FAT_CIGAM)
-    {
-       retValue = extract_fat(address, outputFilename);
-       add_to_hits_list(address, TARGET_FAT, retValue);
-    }
-    else    
-    {
-        msg("[ERROR] No potentially valid mach-o binary at current location!\n");
-        retValue = 1;
-    }
-    return retValue;
-}
-
 
 char IDAP_comment[]	= "Plugin to extract Mach-O binaries from disassembly";
 char IDAP_help[]	= "Extract Mach-O";

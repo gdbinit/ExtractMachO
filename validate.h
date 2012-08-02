@@ -41,34 +41,10 @@
 // IDA SDK includes
 #include <ida.hpp> 
 #include <idp.hpp> 
-#include <loader.hpp>
 #include <bytes.hpp>
 #include <kernwin.hpp>
 
-// OS X includes
-#ifdef __MAC__
-#include <mach-o/loader.h>
-#include <mach-o/fat.h>
-#else
-#include "loader.h"
-
-#define FAT_MAGIC       0xcafebabe
-#define FAT_CIGAM       0xbebafeca      /* NXSwapLong(FAT_MAGIC) */
-
-struct fat_header {
-    uint32_t        magic;          /* FAT_MAGIC */
-    uint32_t        nfat_arch;      /* number of structs that follow */
-};
-
-struct fat_arch {
-    int      cputype;        /* cpu specifier (int) */
-    int   cpusubtype;     /* machine specifier (int) */
-    uint32_t        offset;         /* file offset to this object file */
-    uint32_t        size;           /* size of this object file */
-    uint32_t        align;          /* alignment as a power of 2 */
-};
-
-#endif
+#include "mac_includes.h"
 
 uint8_t validate_macho(ea_t address);
 uint8_t validate_fat(struct fat_header fatHeader, ea_t position);

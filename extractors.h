@@ -40,37 +40,13 @@
 // IDA SDK includes
 #include <ida.hpp> 
 #include <idp.hpp> 
-#include <loader.hpp>
 #include <bytes.hpp>
 #include <kernwin.hpp>
-#include <search.hpp>
 
-// OS X includes
-#ifdef __MAC__
-#include <mach-o/loader.h>
-#include <mach-o/fat.h>
-#include <mach-o/reloc.h>
-#include <mach-o/nlist.h>
-#else
-#include "loader.h"
+#include "mac_includes.h"
 
-#define FAT_MAGIC       0xcafebabe
-#define FAT_CIGAM       0xbebafeca      /* NXSwapLong(FAT_MAGIC) */
-
-struct fat_header {
-    uint32_t        magic;          /* FAT_MAGIC */
-    uint32_t        nfat_arch;      /* number of structs that follow */
-};
-
-struct fat_arch {
-    int      cputype;        /* cpu specifier (int) */
-    int   cpusubtype;     /* machine specifier (int) */
-    uint32_t        offset;         /* file offset to this object file */
-    uint32_t        size;           /* size of this object file */
-    uint32_t        align;          /* alignment as a power of 2 */
-};
-
-#endif
-
+uint8_t extract_macho(ea_t address, char *outputFilename);
+uint8_t extract_mhobject(ea_t address, char *outputFilename);
+uint8_t extract_fat(ea_t address, char *outputFilename);
 
 #endif

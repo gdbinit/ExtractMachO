@@ -7,12 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		DE4880D614615B0000C469F0 /* mymacros.h in Headers */ = {isa = PBXBuildFile; fileRef = DE4880D514615B0000C469F0 /* mymacros.h */; };
 		DE51F12C15C9358A004959FA /* validate.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DE51F12A15C9358A004959FA /* validate.cpp */; };
 		DE51F12D15C9358A004959FA /* validate.h in Headers */ = {isa = PBXBuildFile; fileRef = DE51F12B15C9358A004959FA /* validate.h */; };
 		DE51F12F15C9854E004959FA /* uthash.h in Headers */ = {isa = PBXBuildFile; fileRef = DE51F12E15C9854E004959FA /* uthash.h */; };
 		DE51F13215CA7B80004959FA /* extractors.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DE51F13015CA7B7F004959FA /* extractors.cpp */; };
 		DE51F13315CA7B80004959FA /* extractors.h in Headers */ = {isa = PBXBuildFile; fileRef = DE51F13115CA7B7F004959FA /* extractors.h */; };
+		DE51F13515CA7D3E004959FA /* mac_includes.h in Headers */ = {isa = PBXBuildFile; fileRef = DE51F13415CA7D3E004959FA /* mac_includes.h */; };
 		DEC1F263145ECE0F009A8407 /* extractmacho.h in Headers */ = {isa = PBXBuildFile; fileRef = DEC1F261145ECE0F009A8407 /* extractmacho.h */; };
 		DEC1F264145ECE0F009A8407 /* extractmacho.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DEC1F262145ECE0F009A8407 /* extractmacho.cpp */; };
 		DEC1F266145ECEDD009A8407 /* loader.h in Headers */ = {isa = PBXBuildFile; fileRef = DEC1F265145ECEDD009A8407 /* loader.h */; };
@@ -20,13 +20,13 @@
 
 /* Begin PBXFileReference section */
 		D2AAC0630554660B00DB518D /* extractmacho.pmc */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = extractmacho.pmc; sourceTree = BUILT_PRODUCTS_DIR; };
-		DE4880D514615B0000C469F0 /* mymacros.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = mymacros.h; sourceTree = "<group>"; };
 		DE4883FB1462396A00C469F0 /* README */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README; sourceTree = "<group>"; };
 		DE51F12A15C9358A004959FA /* validate.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = validate.cpp; sourceTree = "<group>"; };
 		DE51F12B15C9358A004959FA /* validate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = validate.h; sourceTree = "<group>"; };
 		DE51F12E15C9854E004959FA /* uthash.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = uthash.h; sourceTree = "<group>"; };
 		DE51F13015CA7B7F004959FA /* extractors.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = extractors.cpp; sourceTree = "<group>"; };
 		DE51F13115CA7B7F004959FA /* extractors.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = extractors.h; sourceTree = "<group>"; };
+		DE51F13415CA7D3E004959FA /* mac_includes.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = mac_includes.h; sourceTree = "<group>"; };
 		DEC1F261145ECE0F009A8407 /* extractmacho.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = extractmacho.h; sourceTree = "<group>"; };
 		DEC1F262145ECE0F009A8407 /* extractmacho.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = extractmacho.cpp; sourceTree = "<group>"; };
 		DEC1F265145ECEDD009A8407 /* loader.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = loader.h; sourceTree = "<group>"; };
@@ -55,14 +55,14 @@
 		08FB7795FE84155DC02AAC07 /* Source */ = {
 			isa = PBXGroup;
 			children = (
-				DEC1F261145ECE0F009A8407 /* extractmacho.h */,
 				DEC1F262145ECE0F009A8407 /* extractmacho.cpp */,
+				DEC1F261145ECE0F009A8407 /* extractmacho.h */,
 				DE51F13015CA7B7F004959FA /* extractors.cpp */,
 				DE51F13115CA7B7F004959FA /* extractors.h */,
 				DE51F12A15C9358A004959FA /* validate.cpp */,
 				DE51F12B15C9358A004959FA /* validate.h */,
+				DE51F13415CA7D3E004959FA /* mac_includes.h */,
 				DEC1F265145ECEDD009A8407 /* loader.h */,
-				DE4880D514615B0000C469F0 /* mymacros.h */,
 				DE51F12E15C9854E004959FA /* uthash.h */,
 				DE4883FB1462396A00C469F0 /* README */,
 			);
@@ -86,10 +86,10 @@
 			files = (
 				DEC1F263145ECE0F009A8407 /* extractmacho.h in Headers */,
 				DEC1F266145ECEDD009A8407 /* loader.h in Headers */,
-				DE4880D614615B0000C469F0 /* mymacros.h in Headers */,
 				DE51F12D15C9358A004959FA /* validate.h in Headers */,
 				DE51F12F15C9854E004959FA /* uthash.h in Headers */,
 				DE51F13315CA7B80004959FA /* extractors.h in Headers */,
+				DE51F13515CA7D3E004959FA /* mac_includes.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

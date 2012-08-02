@@ -30,21 +30,40 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  * 
- * extractmacho.h
+ * mac_includes.h
  *
  */
 
-#ifndef ExtractMachO_extractmacho_cpp
-#define ExtractMachO_extractmacho_cpp
+#ifndef ExtractMachO_mac_includes_h
+#define ExtractMachO_mac_includes_h
 
-// IDA SDK includes
-#include <ida.hpp> 
-#include <idp.hpp> 
-#include <loader.hpp>
-#include <bytes.hpp>
-#include <kernwin.hpp>
-#include <search.hpp>
+// OS X includes
+#ifdef __MAC__
 
-#include "mac_includes.h"
+#include <mach-o/loader.h>
+#include <mach-o/fat.h>
+#include <mach-o/reloc.h>
+#include <mach-o/nlist.h>
+
+#else
+#include "loader.h"
+
+#define FAT_MAGIC       0xcafebabe
+#define FAT_CIGAM       0xbebafeca      /* NXSwapLong(FAT_MAGIC) */
+
+struct fat_header {
+    uint32_t        magic;          /* FAT_MAGIC */
+    uint32_t        nfat_arch;      /* number of structs that follow */
+};
+
+struct fat_arch {
+    int      cputype;        /* cpu specifier (int) */
+    int   cpusubtype;     /* machine specifier (int) */
+    uint32_t        offset;         /* file offset to this object file */
+    uint32_t        size;           /* size of this object file */
+    uint32_t        align;          /* alignment as a power of 2 */
+};
+
+#endif
 
 #endif
