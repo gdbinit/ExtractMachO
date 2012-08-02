@@ -36,8 +36,6 @@
 
 #include "validate.h"
 
-#define DEBUG 1
-
 /*
  * try to validate if a given address contains a valid mach-o file
  */

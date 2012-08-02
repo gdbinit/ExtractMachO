@@ -39,21 +39,39 @@
 #include "validate.h"
 #include "uthash.h"
 
-#define DEBUG 1
+//#define DEBUG 0
 
 uint8_t extract_macho(ea_t address, char *outputFilename);
 uint8_t extract_mhobject(ea_t address, char *outputFilename);
 uint8_t extract_fat(ea_t address, char *outputFilename);
 uint8_t extract_binary(ea_t address, char *outputFilename);
 void add_to_fat_list(ea_t address);
+void add_to_hits_list(ea_t address, uint8_t type, uint8_t extracted);
+void do_report(void);
 
+// structure to add the address of binaries inside fat archives so we don't extract them again
 struct found_fat
 {
-    ea_t id;
+    ea_t id;          // magic value address
     UT_hash_handle hh;
 };
 
 struct found_fat *found_fat = NULL;
+
+// structure for reports
+struct report
+{
+    ea_t id;           // magic value address
+    uint8_t type;      // 0 = 32bits, 1 = 64bits, 2 = FAT
+    uint8_t extracted; // 0 = extracted, 1 = not extracted
+    UT_hash_handle hh;
+};
+
+struct report *report = NULL;
+
+#define TARGET_32  0
+#define TARGET_64  1
+#define TARGET_FAT 2
 
 int IDAP_init(void)
 {
@@ -104,11 +122,11 @@ void IDAP_run(int arg)
         if (answer == 1)
         {
             // ask for output location & name
-            // ask for output filename
             outputFilename = askfile_c(1, NULL, "Select output file...");
             if (outputFilename == NULL || outputFilename[0] == 0)
                 return;
             extract_binary(cursorAddress, outputFilename);
+            do_report();
             return;
         }
         globalSearch = answer ? 0 : 1;
@@ -121,7 +139,8 @@ void IDAP_run(int arg)
         if (AskUsingForm_c(form, outputDir) == 0)
             return;
         
-        int findAddress = 0;
+        // we want to avoid dumping itself so we start at one byte ahead of the first address in the database
+        int findAddress = inf.minEA+1;
         char magic32Bits[] = "CE FA ED FE";
         char magic64Bits[] = "CF FA ED FE";
         char magicFat[]    = "CA FE BA BE";
@@ -144,7 +163,7 @@ void IDAP_run(int arg)
             }
         }
 
-        findAddress = 0;
+        findAddress = inf.minEA+1;
         // look up 32 bits binaries
         while (findAddress != BADADDR)
         {
@@ -158,7 +177,7 @@ void IDAP_run(int arg)
                 extract_binary(findAddress, output);
             }
         }
-        findAddress = 0;
+        findAddress = inf.minEA+1;
         // look up 64 bits binaries
         while (findAddress != BADADDR)
         {
@@ -174,10 +193,42 @@ void IDAP_run(int arg)
         }
     }
 #endif
-
-    msg("Successful extraction!\n");
+    // output a final report of what happened
+    do_report();
     // it's over!
 	return;
+}
+
+int id_sort(struct report *a, struct report *b) {
+    return (a->id - b->id);
+}
+
+void
+do_report(void)
+{
+    HASH_SORT(report, id_sort);
+    msg("Mach-O extraction Report:\n");
+    struct report *tempReport;
+    for (tempReport = report; tempReport != NULL; tempReport = (struct report*)tempReport->hh.next)
+    {
+        msg("Address: 0x%016x Type: %6s Extracted: %s\n", tempReport->id, 
+            tempReport->type == 0 ? "32bits" : tempReport->type == 1 ? "64bits" : "Fat",
+            tempReport->extracted ? "No" : "Yes");
+    }    
+    msg("Mach-O extraction is over!\n");
+}
+
+/*
+ * list where we add information for the final report
+ */
+void
+add_to_hits_list(ea_t address, uint8_t type, uint8_t extracted)
+{
+    struct report *new_report = (struct report*)qalloc(sizeof(struct report));
+    new_report->id = address;
+    new_report->type = type;
+    new_report->extracted = extracted;
+    HASH_ADD_INT(report, id, new_report);
 }
 
 /*
@@ -228,6 +279,7 @@ extract_binary(ea_t address, char *outputFilename)
         if(validate_macho(address))
         {
             msg("[ERROR] Not a valid mach-o binary at %x\n", address);
+            add_to_hits_list(address, magicValue == MH_MAGIC ? TARGET_32 : TARGET_64, 1);
             return 1;
         }
         // we just need to read mach_header.filetype so no problem in using the 32bit struct
@@ -237,10 +289,13 @@ extract_binary(ea_t address, char *outputFilename)
             retValue = extract_mhobject(address, outputFilename);
         else
             retValue = extract_macho(address, outputFilename);
+        
+        add_to_hits_list(address, magicValue == MH_MAGIC ? TARGET_32 : TARGET_64, retValue);
     }
     else if (magicValue == FAT_CIGAM)
     {
        retValue = extract_fat(address, outputFilename);
+       add_to_hits_list(address, TARGET_FAT, retValue);
     }
     else    
     {
