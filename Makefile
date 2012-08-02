@@ -11,8 +11,8 @@ SDKPATH=CHANGME_AND_POINT_TO_THE_SDK_DIR
 LIBRARYPATH=CHANGEME_AND_POINT_TO_THE_IDAQ.APP_MACOS_FOLDER
 #SDKPATH=/Applications/IDA\ Pro\ 6.3/idasdk63
 #LIBRARYPATH=/Applications/IDA\ Pro\ 6.3/idaq.app/Contents/MacOS/
-SRC=extractmacho.cpp 
-OBJS=extractmacho.o 
+SRC=extractmacho.cpp validate.cpp extractors.cpp
+OBJS=extractmacho.o validate.o extractors.o
 CC=g++
 LD=g++
 # binary is always i386

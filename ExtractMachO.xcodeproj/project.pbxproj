@@ -11,6 +11,8 @@
 		DE51F12C15C9358A004959FA /* validate.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DE51F12A15C9358A004959FA /* validate.cpp */; };
 		DE51F12D15C9358A004959FA /* validate.h in Headers */ = {isa = PBXBuildFile; fileRef = DE51F12B15C9358A004959FA /* validate.h */; };
 		DE51F12F15C9854E004959FA /* uthash.h in Headers */ = {isa = PBXBuildFile; fileRef = DE51F12E15C9854E004959FA /* uthash.h */; };
+		DE51F13215CA7B80004959FA /* extractors.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DE51F13015CA7B7F004959FA /* extractors.cpp */; };
+		DE51F13315CA7B80004959FA /* extractors.h in Headers */ = {isa = PBXBuildFile; fileRef = DE51F13115CA7B7F004959FA /* extractors.h */; };
 		DEC1F263145ECE0F009A8407 /* extractmacho.h in Headers */ = {isa = PBXBuildFile; fileRef = DEC1F261145ECE0F009A8407 /* extractmacho.h */; };
 		DEC1F264145ECE0F009A8407 /* extractmacho.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DEC1F262145ECE0F009A8407 /* extractmacho.cpp */; };
 		DEC1F266145ECEDD009A8407 /* loader.h in Headers */ = {isa = PBXBuildFile; fileRef = DEC1F265145ECEDD009A8407 /* loader.h */; };
@@ -23,6 +25,8 @@
 		DE51F12A15C9358A004959FA /* validate.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = validate.cpp; sourceTree = "<group>"; };
 		DE51F12B15C9358A004959FA /* validate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = validate.h; sourceTree = "<group>"; };
 		DE51F12E15C9854E004959FA /* uthash.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = uthash.h; sourceTree = "<group>"; };
+		DE51F13015CA7B7F004959FA /* extractors.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = extractors.cpp; sourceTree = "<group>"; };
+		DE51F13115CA7B7F004959FA /* extractors.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = extractors.h; sourceTree = "<group>"; };
 		DEC1F261145ECE0F009A8407 /* extractmacho.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = extractmacho.h; sourceTree = "<group>"; };
 		DEC1F262145ECE0F009A8407 /* extractmacho.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = extractmacho.cpp; sourceTree = "<group>"; };
 		DEC1F265145ECEDD009A8407 /* loader.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = loader.h; sourceTree = "<group>"; };
@@ -53,6 +57,8 @@
 			children = (
 				DEC1F261145ECE0F009A8407 /* extractmacho.h */,
 				DEC1F262145ECE0F009A8407 /* extractmacho.cpp */,
+				DE51F13015CA7B7F004959FA /* extractors.cpp */,
+				DE51F13115CA7B7F004959FA /* extractors.h */,
 				DE51F12A15C9358A004959FA /* validate.cpp */,
 				DE51F12B15C9358A004959FA /* validate.h */,
 				DEC1F265145ECEDD009A8407 /* loader.h */,
@@ -83,6 +89,7 @@
 				DE4880D614615B0000C469F0 /* mymacros.h in Headers */,
 				DE51F12D15C9358A004959FA /* validate.h in Headers */,
 				DE51F12F15C9854E004959FA /* uthash.h in Headers */,
+				DE51F13315CA7B80004959FA /* extractors.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -140,6 +147,7 @@
 			files = (
 				DEC1F264145ECE0F009A8407 /* extractmacho.cpp in Sources */,
 				DE51F12C15C9358A004959FA /* validate.cpp in Sources */,
+				DE51F13215CA7B80004959FA /* extractors.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
