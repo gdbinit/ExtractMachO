@@ -49,7 +49,7 @@ validate_macho(ea_t address)
     
     // default is failure
     uint8_t retvalue = 1;
-    if (magic == MH_MAGIC)
+    if (magic == MH_MAGIC || magic == MH_CIGAM)
     {
         // validate cpu type
         struct mach_header header;
@@ -59,25 +59,43 @@ validate_macho(ea_t address)
             msg("[ERROR] Read bytes failed!\n");
             return 1;
         }
-        if (header.cputype == CPU_TYPE_I386)
+        // x86 & ARM
+        if ((header.cputype == CPU_TYPE_I386 && header.cpusubtype == CPU_SUBTYPE_X86_ALL && magic == MH_MAGIC) ||
+            (header.cputype == CPU_TYPE_ARM  && header.cpusubtype == CPU_SUBTYPE_ARM_ALL && magic == MH_MAGIC))
         {
-            // validate cpu sub type
-            if (header.cpusubtype == CPU_SUBTYPE_X86_ALL)
-            {
-                // validate file type
-                if (header.filetype == MH_OBJECT ||
-                    header.filetype == MH_EXECUTE ||
-                    header.filetype == MH_PRELOAD ||
-                    header.filetype == MH_DYLIB ||
-                    header.filetype == MH_DYLINKER ||
-                    header.filetype == MH_BUNDLE)
-                {
+            // validate file type
+            switch (header.filetype) {
+                case MH_OBJECT:
+                case MH_EXECUTE:
+                case MH_PRELOAD:
+                case MH_DYLIB:
+                case MH_DYLINKER:
+                case MH_BUNDLE:
                     retvalue = 0;
-                }
+                    break;                    
+                default:
+                    break;
+            }
+        }
+        // PowerPC
+        else if (ntohl(header.cputype) == CPU_TYPE_POWERPC && ntohl(header.cpusubtype) == CPU_SUBTYPE_POWERPC_ALL && magic == MH_CIGAM)
+        {
+            uint32_t filetype = ntohl(header.filetype);
+            switch (filetype) {
+                case MH_OBJECT:
+                case MH_EXECUTE:
+                case MH_PRELOAD:
+                case MH_DYLIB:
+                case MH_DYLINKER:
+                case MH_BUNDLE:
+                    retvalue = 0;
+                    break;                    
+                default:
+                    break;
             }
         }
     }
-    else if (magic == MH_MAGIC_64)
+    else if (magic == MH_MAGIC_64 || magic == MH_CIGAM_64)
     {
         // validate cpu type
         struct mach_header_64 header64;
@@ -87,22 +105,42 @@ validate_macho(ea_t address)
             msg("[ERROR] Read bytes failed!\n");
             return 1;
         }
-        if (header64.cputype == CPU_TYPE_X86_64)
+        // dunno why but some files have cpu sub type ORed with that 0x8000000 value (CPU_SUBTYPE_LIB64)
+        if ((header64.cputype == CPU_TYPE_X86_64 && header64.cpusubtype == CPU_SUBTYPE_X86_64_ALL && magic == MH_MAGIC_64) ||
+            (header64.cputype == CPU_TYPE_X86_64 && header64.cpusubtype == (CPU_SUBTYPE_X86_64_ALL | 0x80000000) && magic == MH_MAGIC_64))
         {
-            // validate cpu sub type
-            if (header64.cpusubtype == CPU_SUBTYPE_X86_64_ALL)
+            // validate file type
+            switch (header64.filetype) 
             {
-                // validate file type
-                if (header64.filetype == MH_OBJECT ||
-                    header64.filetype == MH_EXECUTE ||
-                    header64.filetype == MH_PRELOAD ||
-                    header64.filetype == MH_DYLIB ||
-                    header64.filetype == MH_DYLINKER ||
-                    header64.filetype == MH_BUNDLE ||
-                    header64.filetype == MH_KEXT_BUNDLE)
-                {
+                case MH_OBJECT:
+                case MH_EXECUTE:
+                case MH_PRELOAD:
+                case MH_DYLIB:
+                case MH_DYLINKER:
+                case MH_BUNDLE:
+                case MH_KEXT_BUNDLE:
                     retvalue = 0;
-                }
+                    break;    
+                default:
+                    break;
+            }
+        }
+        else if (ntohl(header64.cputype) == CPU_TYPE_POWERPC64 && ntohl(header64.cpusubtype) == CPU_SUBTYPE_POWERPC_ALL && magic == MH_CIGAM_64)
+        {
+            uint32_t filetype = ntohl(header64.filetype);
+            // validate file type
+            switch (filetype) {
+                case MH_OBJECT:
+                case MH_EXECUTE:
+                case MH_PRELOAD:
+                case MH_DYLIB:
+                case MH_DYLINKER:
+                case MH_BUNDLE:
+                case MH_KEXT_BUNDLE:
+                    retvalue = 0;
+                    break;                    
+                default:
+                    break;
             }
         }
     }
@@ -139,11 +177,26 @@ validate_fat(struct fat_header fatHeader, ea_t position)
             {
                 struct fat_arch fatArch;
                 get_many_bytes(address, &fatArch, sizeof(struct fat_arch));
-                if (ntohl(fatArch.cputype) == CPU_TYPE_X86 || ntohl(fatArch.cputype) == CPU_TYPE_X86_64)
+                uint32_t cputype = ntohl(fatArch.cputype);
+                uint32_t cpusubtype = ntohl(fatArch.cpusubtype);
+                // validate cpu type & subtype, hopefully false positives rate is extremely low
+                switch (cputype) 
                 {
-                    if (ntohl(fatArch.cpusubtype) == CPU_SUBTYPE_X86_ALL || ntohl(fatArch.cpusubtype) == CPU_SUBTYPE_X86_64_ALL)
+                    case CPU_TYPE_X86:
+                    case CPU_TYPE_X86_64:
+                    case CPU_TYPE_POWERPC:
+                    case CPU_TYPE_POWERPC64:
+                    case CPU_TYPE_ARM:
                     {
-                        retvalue = 0;
+                        switch (cpusubtype) 
+                        {
+                            case CPU_SUBTYPE_X86_ALL: 
+                            case CPU_SUBTYPE_POWERPC_ALL: // the X86_64 and ARM are equal to these two
+                            case (CPU_SUBTYPE_X86_64_ALL | 0x80000000):
+                                retvalue = 0;
+                                break;
+                        }
+                        break;
                     }
                 }
                 address += sizeof(struct fat_arch);
