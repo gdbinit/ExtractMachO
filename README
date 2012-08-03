@@ -11,13 +11,13 @@
  /    Y    \/ __ \\  \___|   Y  \ /_____/ /    |    \
  \____|__  (____  /\___  >___|  /         \_______  /
          \/     \/     \/     \/                  \/ 
-  v1.0
+  v1.1
 
  (c) 2012, fG! - reverser@put.as - http://reverse.put.as
 
 This is a very simple IDA plugin to extract all Mach-O binaries contained anywhere in the disassembly.
 
-It supports 32 and 64bits binaries, and also fat binaries!
+It supports 32 and 64bits binaries, and also fat binaries, Intel, PPC and ARM!
 
 The default behavior is to search all the IDA database for Mach-O binaries.
 
@@ -58,3 +58,5 @@ v0.2 - Support for fat binaries and ability to search all IDA database for binar
        Now it's able to extract 32bit kernel extensions, which use MH_OBJECT file format.
 v1.0 - Add report capabilities.
        Cleanups and small fixes.
+v1.1 - Add PPC and ARM extraction support!
+

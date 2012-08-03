@@ -11,7 +11,7 @@
  * /    Y    \/ __ \\  \___|   Y  \ /_____/ /    |    \
  * \____|__  (____  /\___  >___|  /         \_______  /
  *         \/     \/     \/     \/                  \/ 
- *  v1.0
+ *  v1.1
  *
  * (c) 2012, fG! - reverser@put.as - http://reverse.put.as
  * 
@@ -40,7 +40,7 @@
 #include "validate.h"
 #include "uthash.h"
 
-#define VERSION "1.0"
+#define VERSION "1.1"
 //#define DEBUG 0
 
 uint8_t extract_binary(ea_t address, char *outputFilename);
