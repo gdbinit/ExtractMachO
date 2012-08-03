@@ -143,8 +143,6 @@ void IDAP_run(int arg)
         
         // we want to avoid dumping itself so we start at one byte ahead of the first address in the database
         int findAddress = inf.minEA+1;
-        uchar magic32Bits[] = "\xCE\xFA\xED\xFE";
-        uchar magic64Bits[] = "\xCF\xFA\xED\xFE";
         uchar magicFat[]    = "\xCA\xFE\xBA\xBE";
         
         // we have a small problem here
@@ -167,39 +165,34 @@ void IDAP_run(int arg)
         }
 
         findAddress = inf.minEA+1;
-        // look up 32 bits binaries
-        while (findAddress != BADADDR)
+        
+#define NR_ARCHS 4
+        uchar* archmagic[NR_ARCHS];
+        archmagic[0] = (uchar*)"\xCE\xFA\xED\xFE";
+        archmagic[1] = (uchar*)"\xCF\xFA\xED\xFE";
+        archmagic[2] = (uchar*)"\xFE\xED\xFA\xCE";
+        archmagic[3] = (uchar*)"\xFE\xED\xFA\xCF";
+        
+        for (uint32_t i = 0; i < NR_ARCHS; i++)
         {
-            findAddress = bin_search(findAddress, inf.maxEA, magic32Bits, NULL, 4, BIN_SEARCH_FORWARD, BIN_SEARCH_NOCASE);
-            struct found_fat *f = NULL;
-            HASH_FIND(hh, found_fat, &findAddress, sizeof(ea_t), f);
-            if (findAddress != BADADDR && f == NULL)
+            while (findAddress != BADADDR)
             {
-                char output[MAXSTR];
-                qsnprintf(output, sizeof(output)-1, "%s/extracted_offset_0x%x_32bits", outputDir, findAddress);
-                extract_binary(findAddress, output);
-                findAddress += 1;
+                findAddress = bin_search(findAddress, inf.maxEA, archmagic[i], NULL, 4, BIN_SEARCH_FORWARD, BIN_SEARCH_NOCASE);
+                struct found_fat *f = NULL;
+                HASH_FIND(hh, found_fat, &findAddress, sizeof(ea_t), f);
+                if (findAddress != BADADDR && f == NULL)
+                {
+                    char output[MAXSTR];
+                    qsnprintf(output, sizeof(output)-1, "%s/extracted_offset_0x%x", outputDir, findAddress);
+                    extract_binary(findAddress, output);
+                    findAddress += 1;
+                }
+                // we need to advance anyway in case binary is in the fat list
+                else if (findAddress != BADADDR)
+                    findAddress += 1;
             }
-            // we need to advance anyway in case binary is in the fat list
-            else if (findAddress != BADADDR)
-                findAddress += 1;
-        }
-        findAddress = inf.minEA+1;
-        // look up 64 bits binaries
-        while (findAddress != BADADDR)
-        {
-            findAddress = bin_search(findAddress, inf.maxEA, magic64Bits, NULL, 4, BIN_SEARCH_FORWARD, BIN_SEARCH_NOCASE);
-            struct found_fat *f = NULL;
-            HASH_FIND(hh, found_fat, &findAddress, sizeof(ea_t), f);
-            if (findAddress != BADADDR && f == NULL)
-            {
-                char output[MAXSTR];
-                qsnprintf(output, sizeof(output)-1, "%s/extracted_offset_0x%x_64bits", outputDir, findAddress);
-                extract_binary(findAddress, output);
-                findAddress += 1;
-            }
-            else if (findAddress != BADADDR)
-                findAddress += 1;
+            // reset start address
+            findAddress = inf.minEA+1;
         }
     }
 
@@ -217,33 +210,43 @@ extract_binary(ea_t address, char *outputFilename)
 {
     uint8_t retValue = 0;
     uint32 magicValue = get_long(address);
-    if (magicValue == MH_MAGIC || magicValue == MH_MAGIC_64)
+    switch (magicValue)
     {
-        if(validate_macho(address))
+        case MH_MAGIC:
+        case MH_MAGIC_64:
+        case MH_CIGAM_64:
+        case MH_CIGAM:
         {
-            msg("[ERROR] Not a valid mach-o binary at %x\n", address);
-            add_to_hits_list(address, magicValue == MH_MAGIC ? TARGET_32 : TARGET_64, 1);
-            return 1;
+            if(validate_macho(address))
+            {
+                msg("[ERROR] Not a valid mach-o binary at %x\n", address);
+                add_to_hits_list(address, (magicValue == MH_MAGIC || magicValue == MH_CIGAM) ? TARGET_32 : TARGET_64, 1);
+                return 1;
+            }
+            // we just need to read mach_header.filetype so no problem in using the 32bit struct
+            struct mach_header header;
+            get_many_bytes(address, &header, sizeof(struct mach_header));
+            uint32_t filetype = (magicValue == MH_MAGIC || magicValue == MH_MAGIC_64) ? header.filetype : ntohl(header.filetype);
+            if (filetype == MH_OBJECT)
+                retValue = extract_mhobject(address, outputFilename);
+            else
+                retValue = extract_macho(address, outputFilename);
+            
+            add_to_hits_list(address, (magicValue == MH_MAGIC || magicValue == MH_CIGAM) ? TARGET_32 : TARGET_64, retValue);
+            break;
         }
-        // we just need to read mach_header.filetype so no problem in using the 32bit struct
-        struct mach_header header;
-        get_many_bytes(address, &header, sizeof(struct mach_header));
-        if (header.filetype == MH_OBJECT)
-            retValue = extract_mhobject(address, outputFilename);
-        else
-            retValue = extract_macho(address, outputFilename);
-
-        add_to_hits_list(address, magicValue == MH_MAGIC ? TARGET_32 : TARGET_64, retValue);
-    }
-    else if (magicValue == FAT_CIGAM)
-    {
-        retValue = extract_fat(address, outputFilename);
-        add_to_hits_list(address, TARGET_FAT, retValue);
-    }
-    else    
-    {
-        msg("[ERROR] No potentially valid mach-o binary at current location!\n");
-        retValue = 1;
+        case FAT_CIGAM:
+        {
+            retValue = extract_fat(address, outputFilename);
+            add_to_hits_list(address, TARGET_FAT, retValue);
+            break;
+        }
+        default:
+        {
+            msg("[ERROR] No potentially valid mach-o binary at current location!\n");
+            retValue = 1;
+            break;
+        }
     }
     return retValue;
 }
