@@ -37,6 +37,8 @@
 #include "extractors.h"
 #include "validate.h"
 
+#define bswap64(y) (((uint64_t)ntohl(y)) << 32 | ntohl(y>>32))
+
 uint8_t
 extract_mhobject(ea_t address, char *outputFilename)
 {
@@ -94,6 +96,18 @@ extract_mhobject(ea_t address, char *outputFilename)
     else
         qfwrite(outputFile, mach_header, sizeof(struct mach_header));
     
+    // swap the endianness of some fields if it's powerpc target
+    if (magicValue == MH_CIGAM)
+    {
+        mach_header->ncmds = ntohl(mach_header->ncmds);
+        mach_header->sizeofcmds = ntohl(mach_header->sizeofcmds);
+    }
+    else if (magicValue == MH_CIGAM_64)
+    {
+        mach_header64->ncmds = ntohl(mach_header64->ncmds);
+        mach_header64->sizeofcmds = ntohl(mach_header64->sizeofcmds);
+    }
+
     // read the load commands
     uint32_t ncmds = arch ? mach_header64->ncmds : mach_header->ncmds;
     uint32_t sizeofcmds = arch ? mach_header64->sizeofcmds : mach_header->sizeofcmds;
@@ -118,10 +132,25 @@ extract_mhobject(ea_t address, char *outputFilename)
         get_many_bytes(cmdsBaseAddress, &loadCommand, sizeof(struct load_command));
         struct segment_command segmentCommand;
         struct segment_command_64 segmentCommand64;
+        // swap the endianness of some fields if it's powerpc target
+        if (magicValue == MH_CIGAM || magicValue == MH_CIGAM_64)
+        {
+            loadCommand.cmd = ntohl(loadCommand.cmd);
+            loadCommand.cmdsize = ntohl(loadCommand.cmdsize);
+        }
+
         // 32bits targets
         if (loadCommand.cmd == LC_SEGMENT)
         {
             get_many_bytes(cmdsBaseAddress, &segmentCommand, sizeof(struct segment_command));
+            // swap the endianness of some fields if it's powerpc target
+            if (magicValue == MH_CIGAM)
+            {
+                segmentCommand.nsects   = ntohl(segmentCommand.nsects);
+                segmentCommand.fileoff  = ntohl(segmentCommand.fileoff);
+                segmentCommand.filesize = ntohl(segmentCommand.filesize);
+            }
+
             ea_t sectionAddress = cmdsBaseAddress + sizeof(struct segment_command);
             struct section sectionCommand; 
             // iterate thru all sections to find the first code offset
@@ -129,6 +158,13 @@ extract_mhobject(ea_t address, char *outputFilename)
             for (uint32_t x = 0; x < segmentCommand.nsects; x++)
             {
                 get_many_bytes(sectionAddress, &sectionCommand, sizeof(struct section));
+                // swap the endianness of some fields if it's powerpc target
+                if (magicValue == MH_CIGAM)
+                {
+                    sectionCommand.offset = ntohl(sectionCommand.offset);
+                    sectionCommand.nreloc = ntohl(sectionCommand.nreloc);
+                    sectionCommand.reloff = ntohl(sectionCommand.reloff);
+                }
                 if (sectionCommand.nreloc > 0)
                 {
                     uint32_t size = sectionCommand.nreloc*sizeof(struct relocation_info);
@@ -148,10 +184,20 @@ extract_mhobject(ea_t address, char *outputFilename)
             qfwrite(outputFile, buf, segmentCommand.filesize);
             qfree(buf);
         }
+        // we need this to dump missing relocations
         else if (loadCommand.cmd == LC_SYMTAB)
         {
             struct symtab_command symtabCommand;
             get_many_bytes(cmdsBaseAddress, &symtabCommand, sizeof(struct symtab_command));
+            // swap the endianness of some fields if it's powerpc target
+            if (magicValue == MH_CIGAM || magicValue == MH_CIGAM_64)
+            {
+                symtabCommand.nsyms   = ntohl(symtabCommand.nsyms);
+                symtabCommand.symoff  = ntohl(symtabCommand.symoff);
+                symtabCommand.stroff  = ntohl(symtabCommand.stroff);
+                symtabCommand.strsize = ntohl(symtabCommand.strsize);
+            }
+            
             if (symtabCommand.symoff > 0)
             {
                 void *buf = qalloc(symtabCommand.nsyms*sizeof(struct nlist));
@@ -174,11 +220,27 @@ extract_mhobject(ea_t address, char *outputFilename)
         else if (loadCommand.cmd == LC_SEGMENT_64)
         {
             get_many_bytes(cmdsBaseAddress, &segmentCommand64, sizeof(struct segment_command_64));
+            // swap the endianness of some fields if it's powerpc target
+            if (magicValue == MH_CIGAM_64)
+            {
+                segmentCommand64.nsects   = ntohl(segmentCommand64.nsects);
+                segmentCommand64.fileoff  = bswap64(segmentCommand64.fileoff);
+                segmentCommand64.filesize = bswap64(segmentCommand64.filesize);
+            }
+
             ea_t sectionAddress = cmdsBaseAddress + sizeof(struct segment_command_64);
             struct section_64 sectionCommand64;
             for (uint32_t x = 0; x < segmentCommand64.nsects; x++)
             {
                 get_many_bytes(sectionAddress, &sectionCommand64, sizeof(struct section_64));
+                // swap the endianness of some fields if it's powerpc target
+                if (magicValue == MH_CIGAM_64)
+                {
+                    sectionCommand64.offset = ntohl(sectionCommand64.offset);
+                    sectionCommand64.nreloc = ntohl(sectionCommand64.nreloc);
+                    sectionCommand64.reloff = ntohl(sectionCommand64.reloff);
+                }
+                
                 if (sectionCommand64.nreloc > 0)
                 {
                     uint32_t size = sectionCommand64.nreloc*sizeof(struct relocation_info);
@@ -221,7 +283,7 @@ extract_macho(ea_t address, char *outputFilename)
     struct mach_header_64 *mach_header64 = NULL;
     
     uint8_t arch = 0;
-    if (magicValue == MH_MAGIC)
+    if (magicValue == MH_MAGIC || magicValue == MH_CIGAM)
     {
 #if DEBUG
         msg("[DEBUG] Target is 32bits!\n");
@@ -234,7 +296,7 @@ extract_macho(ea_t address, char *outputFilename)
             return 1;
         }
     }
-    else if (magicValue == MH_MAGIC_64)
+    else if (magicValue == MH_MAGIC_64 || magicValue == MH_CIGAM_64)
     {
 #if DEBUG
         msg("[DEBUG] Target is 64bits!\n");
@@ -246,6 +308,11 @@ extract_macho(ea_t address, char *outputFilename)
             return 1;
         }
         arch = 1;
+    }
+    else
+    {
+        msg("[ERROR] Unknown target!\n");
+        return 1;
     }
     
     // open output file
@@ -269,8 +336,20 @@ extract_macho(ea_t address, char *outputFilename)
     else
         qfwrite(outputFile, mach_header, sizeof(struct mach_header));
     
+    // swap the endianness of some fields if it's powerpc target
+    if (magicValue == MH_CIGAM)
+    {
+        mach_header->ncmds = ntohl(mach_header->ncmds);
+        mach_header->sizeofcmds = ntohl(mach_header->sizeofcmds);
+    }
+    else if (magicValue == MH_CIGAM_64)
+    {
+        mach_header64->ncmds = ntohl(mach_header64->ncmds);
+        mach_header64->sizeofcmds = ntohl(mach_header64->sizeofcmds);
+    }
+    
     // read the load commands
-    uint32_t ncmds = arch ? mach_header64->ncmds : mach_header->ncmds;
+    uint32_t ncmds      = arch ? mach_header64->ncmds : mach_header->ncmds;
     uint32_t sizeofcmds = arch ? mach_header64->sizeofcmds : mach_header->sizeofcmds;
     uint32_t headerSize = arch ? sizeof(struct mach_header_64) : sizeof(struct mach_header);
     
@@ -294,11 +373,25 @@ extract_macho(ea_t address, char *outputFilename)
         get_many_bytes(cmdsBaseAddress, &loadCommand, sizeof(struct load_command));
         struct segment_command segmentCommand;
         struct segment_command_64 segmentCommand64;
+        // swap the endianness of some fields if it's powerpc target
+        if (magicValue == MH_CIGAM || magicValue == MH_CIGAM_64)
+        {
+            loadCommand.cmd     = ntohl(loadCommand.cmd);
+            loadCommand.cmdsize = ntohl(loadCommand.cmdsize);
+        }
+        
         // 32bits targets
         // FIXME: do we also need to dump the relocs info here ?
         if (loadCommand.cmd == LC_SEGMENT)
         {
             get_many_bytes(cmdsBaseAddress, &segmentCommand, sizeof(struct segment_command));
+            // swap the endianness of some fields if it's powerpc target
+            if (magicValue == MH_CIGAM)
+            {
+                segmentCommand.nsects   = ntohl(segmentCommand.nsects);
+                segmentCommand.fileoff  = ntohl(segmentCommand.fileoff);
+                segmentCommand.filesize = ntohl(segmentCommand.filesize);
+            }
             // the file offset info in LC_SEGMENT is zero at __TEXT so we need to get it from the sections
             // the size is ok to be used
             if (strncmp(segmentCommand.segname, "__TEXT", 16) == 0)
@@ -310,6 +403,10 @@ extract_macho(ea_t address, char *outputFilename)
                 for (uint32_t x = 0; x < segmentCommand.nsects; x++)
                 {
                     get_many_bytes(sectionAddress, &sectionCommand, sizeof(struct section));
+                    // swap the endianness of some fields if it's powerpc target
+                    if (magicValue == MH_CIGAM)
+                        sectionCommand.offset = ntohl(sectionCommand.offset);
+                    
                     if (strncmp(sectionCommand.sectname, "__text", 16) == 0)
                     {
                         codeOffset = sectionCommand.offset;
@@ -335,6 +432,14 @@ extract_macho(ea_t address, char *outputFilename)
         else if (loadCommand.cmd == LC_SEGMENT_64)
         {
             get_many_bytes(cmdsBaseAddress, &segmentCommand64, sizeof(struct segment_command_64));
+            // swap the endianness of some fields if it's powerpc target
+            if (magicValue == MH_CIGAM_64)
+            {
+                segmentCommand64.nsects   = ntohl(segmentCommand64.nsects);
+                segmentCommand64.fileoff  = bswap64(segmentCommand64.fileoff);
+                segmentCommand64.filesize = bswap64(segmentCommand64.filesize);
+            }
+
             if(strncmp(segmentCommand64.segname, "__TEXT", 16) == 0)
             {
                 ea_t sectionAddress = cmdsBaseAddress + sizeof(struct segment_command_64);
@@ -342,6 +447,10 @@ extract_macho(ea_t address, char *outputFilename)
                 for (uint32_t x = 0; x < segmentCommand64.nsects; x++)
                 {
                     get_many_bytes(sectionAddress, &sectionCommand64, sizeof(struct section_64));
+                    // swap the endianness of some fields if it's powerpc target
+                    if (magicValue == MH_CIGAM_64)
+                        sectionCommand64.offset = ntohl(sectionCommand64.offset);
+
                     if (strncmp(sectionCommand64.sectname, "__text", 16) == 0)
                     {
                         codeOffset = sectionCommand64.offset;

@@ -78,7 +78,7 @@ validate_macho(ea_t address)
             }
         }
         // PowerPC
-        else if (ntohl(header.cputype) == CPU_TYPE_POWERPC && ntohl(header.cpusubtype) == CPU_SUBTYPE_POWERPC_ALL && magic == MH_CIGAM)
+        else if (ntohl(header.cputype) == CPU_TYPE_POWERPC && magic == MH_CIGAM)
         {
             uint32_t filetype = ntohl(header.filetype);
             switch (filetype) {
@@ -125,7 +125,7 @@ validate_macho(ea_t address)
                     break;
             }
         }
-        else if (ntohl(header64.cputype) == CPU_TYPE_POWERPC64 && ntohl(header64.cpusubtype) == CPU_SUBTYPE_POWERPC_ALL && magic == MH_CIGAM_64)
+        else if (ntohl(header64.cputype) == CPU_TYPE_POWERPC64 && magic == MH_CIGAM_64)
         {
             uint32_t filetype = ntohl(header64.filetype);
             // validate file type
