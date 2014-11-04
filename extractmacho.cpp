@@ -142,7 +142,7 @@ void IDAP_run(int arg)
             return;
         
         // we want to avoid dumping itself so we start at one byte ahead of the first address in the database
-        int findAddress = inf.minEA+1;
+        ea_t findAddress = inf.minEA+1;
         uchar magicFat[]    = "\xCA\xFE\xBA\xBE";
         
         // we have a small problem here
@@ -158,7 +158,11 @@ void IDAP_run(int arg)
             {
                 add_to_fat_list(findAddress);
                 char output[MAXSTR];
+#ifdef __EA64__
+                qsnprintf(output, sizeof(output)-1, "%s/extracted_offset_0x%llx_fat", outputDir, findAddress);
+#else
                 qsnprintf(output, sizeof(output)-1, "%s/extracted_offset_0x%x_fat", outputDir, findAddress);
+#endif
                 extract_binary(findAddress, output);
                 findAddress += 1;
             }
@@ -183,7 +187,11 @@ void IDAP_run(int arg)
                 if (findAddress != BADADDR && f == NULL)
                 {
                     char output[MAXSTR];
+#ifdef __EA64__
+                    qsnprintf(output, sizeof(output)-1, "%s/extracted_offset_0x%llx", outputDir, findAddress);
+#else
                     qsnprintf(output, sizeof(output)-1, "%s/extracted_offset_0x%x", outputDir, findAddress);
+#endif
                     extract_binary(findAddress, output);
                     findAddress += 1;
                 }
