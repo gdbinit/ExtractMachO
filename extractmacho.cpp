@@ -183,7 +183,7 @@ void IDAP_run(int arg)
             {
                 findAddress = bin_search(findAddress, inf.maxEA, archmagic[i], NULL, 4, BIN_SEARCH_FORWARD, BIN_SEARCH_NOCASE);
                 struct found_fat *f = NULL;
-                HASH_FIND(hh, found_fat, &findAddress, sizeof(ea_t), f);
+                HASH_FIND(hh, found_fat, &findAddress, 4, f);
                 if (findAddress != BADADDR && f == NULL)
                 {
                     char output[MAXSTR];
