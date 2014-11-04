@@ -135,7 +135,7 @@ void IDAP_run(int arg)
 
     if (globalSearch)
     {
-        char form[]="Choose output directory\n<~O~utput directory:F:1:64::>";
+        char form[]="Choose output directory\n<~O~utput directory:F:0:64::>";
         char outputDir[MAXSTR] = "";
         // cancelled
         if (AskUsingForm_c(form, outputDir) == 0)
