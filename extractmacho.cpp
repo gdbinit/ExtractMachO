@@ -219,7 +219,11 @@ extract_binary(ea_t address, char *outputFilename)
         {
             if(validate_macho(address))
             {
+#ifdef __EA64__
+                msg("[ERROR] Not a valid mach-o binary at %llx\n", address);
+#else
                 msg("[ERROR] Not a valid mach-o binary at %x\n", address);
+#endif
                 add_to_hits_list(address, (magicValue == MH_MAGIC || magicValue == MH_CIGAM) ? TARGET_32 : TARGET_64, 1);
                 return 1;
             }
@@ -269,9 +273,15 @@ do_report(void)
     struct report *tempReport;
     for (tempReport = report; tempReport != NULL; tempReport = (struct report*)tempReport->hh.next)
     {
+#ifdef __EA64__
+        msg("Address: 0x%016llx Type: %6s Extracted: %s\n", tempReport->id, 
+            tempReport->type == 0 ? "32bits" : tempReport->type == 1 ? "64bits" : "Fat",
+            tempReport->extracted ? "No" : "Yes");
+#else
         msg("Address: 0x%016x Type: %6s Extracted: %s\n", tempReport->id, 
             tempReport->type == 0 ? "32bits" : tempReport->type == 1 ? "64bits" : "Fat",
             tempReport->extracted ? "No" : "Yes");
+#endif
     }    
     msg("Mach-O extraction is over!\n");
 }
