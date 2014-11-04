@@ -17,7 +17,7 @@ CC=g++
 LD=g++
 # binary is always i386
 CFLAGS=-arch i386 -D__IDP__ -D__PLUGIN__ -c -D__MAC__ $(SWITCH64) -I$(SDKPATH)/include $(SRC)
-LDFLAGS=-arch i386 --shared $(OBJS) -L$(SDKPATH) -L$(SDKPATH)/bin -l$(LIBTARGET) --no-undefined -Wl -L$(LIBRARYPATH)
+LDFLAGS=-arch i386 --shared $(OBJS) -L$(SDKPATH) -L$(SDKPATH)/bin -l$(LIBTARGET) -Wl -L$(LIBRARYPATH)
 
 all:
 	$(CC) $(CFLAGS)
