@@ -40,7 +40,7 @@
 #include "validate.h"
 #include "uthash.h"
 
-#define VERSION "1.1.1"
+#define VERSION "1.1.2"
 //#define DEBUG 0
 
 uint8_t extract_binary(ea_t address, char *outputFilename);
