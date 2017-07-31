@@ -54,7 +54,7 @@ validate_macho(ea_t address)
         // validate cpu type
         struct mach_header header;
         // retrieve mach_header contents
-        if(!get_many_bytes(address, &header, sizeof(struct mach_header)))
+        if(!get_bytes(address, &header, sizeof(struct mach_header)))
         {
             msg("[ERROR] Read bytes failed!\n");
             return 1;
@@ -100,7 +100,7 @@ validate_macho(ea_t address)
         // validate cpu type
         struct mach_header_64 header64;
         // retrieve mach_header contents
-        if(!get_many_bytes(address, &header64, sizeof(struct mach_header_64)))
+        if(!get_bytes(address, &header64, sizeof(struct mach_header_64)))
         {
             msg("[ERROR] Read bytes failed!\n");
             return 1;
@@ -176,7 +176,7 @@ validate_fat(struct fat_header fatHeader, ea_t position)
             for (uint32_t i = 0; i < nfat_arch; i++)
             {
                 struct fat_arch fatArch;
-                get_many_bytes(address, &fatArch, sizeof(struct fat_arch));
+                get_bytes(address, &fatArch, sizeof(struct fat_arch));
                 uint32_t cputype = ntohl(fatArch.cputype);
                 uint32_t cpusubtype = ntohl(fatArch.cpusubtype);
                 // validate cpu type & subtype, hopefully false positives rate is extremely low

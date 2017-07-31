@@ -237,7 +237,7 @@ extract_binary(ea_t address, char *outputFilename)
             }
             // we just need to read mach_header.filetype so no problem in using the 32bit struct
             struct mach_header header;
-            get_many_bytes(address, &header, sizeof(struct mach_header));
+            get_bytes(address, &header, sizeof(struct mach_header));
             uint32_t filetype = (magicValue == MH_MAGIC || magicValue == MH_MAGIC_64) ? header.filetype : ntohl(header.filetype);
             if (filetype == MH_OBJECT)
                 retValue = extract_mhobject(address, outputFilename);
@@ -316,7 +316,7 @@ add_to_fat_list(ea_t address)
 {
     // process the fat structures
     struct fat_header fatHeader;
-    get_many_bytes(address, &fatHeader, sizeof(struct fat_header));
+    get_bytes(address, &fatHeader, sizeof(struct fat_header));
     if (fatHeader.magic == FAT_CIGAM)
     {
         // fat headers are always big endian!
@@ -328,7 +328,7 @@ add_to_fat_list(ea_t address)
             for (uint32_t i = 0; i < nfat_arch; i++)
             {
                 struct fat_arch fatArch;
-                get_many_bytes(archAddress, &fatArch, sizeof(struct fat_arch));
+                get_bytes(archAddress, &fatArch, sizeof(struct fat_arch));
                 // binary is located at start of fat magic plus offset found in the fat_arch structure
                 ea_t binLocation = address + ntohl(fatArch.offset);
                 
