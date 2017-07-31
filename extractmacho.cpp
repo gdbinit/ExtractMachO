@@ -92,7 +92,7 @@ void IDAP_term(void)
     return;
 }
 
-void IDAP_run(int arg)
+bool IDAP_run(size_t)
 { 
     // this is useful for testing - plugin will be unloaded after execution
     // so we can copy a new version and call it again using IDC: RunPlugin("extractmacho", -1);
@@ -121,14 +121,14 @@ void IDAP_run(int arg)
             // ask for output location & name
             outputFilename = askfile_c(1, NULL, "Select output file...");
             if (outputFilename == NULL || outputFilename[0] == 0)
-                return;
+                return false;
             extract_binary(cursorAddress, outputFilename);
             do_report();
-            return;
+            return true;
         }
         // cancelled
         if (answer == -1)
-            return;
+            return false;
         
         globalSearch = answer ? 0 : 1;
     }
@@ -139,7 +139,7 @@ void IDAP_run(int arg)
         char outputDir[MAXSTR] = "";
         // cancelled
         if (AskUsingForm_c(form, outputDir) == 0)
-            return;
+            return false;
         
         // we want to avoid dumping itself so we start at one byte ahead of the first address in the database
         ea_t findAddress = inf.minEA+1;
@@ -207,7 +207,7 @@ void IDAP_run(int arg)
     // output a final report of what happened
     do_report();
     // it's over!
-	return;
+	return true;
 }
 
 /*
