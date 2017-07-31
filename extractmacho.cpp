@@ -142,7 +142,7 @@ bool IDAP_run(size_t)
             return false;
         
         // we want to avoid dumping itself so we start at one byte ahead of the first address in the database
-        ea_t findAddress = inf.minEA+1;
+        ea_t findAddress = inf.min_ea+1;
         uchar magicFat[]    = "\xCA\xFE\xBA\xBE";
         
         // we have a small problem here
@@ -153,7 +153,7 @@ bool IDAP_run(size_t)
         // lookup fat archives
         while (findAddress != BADADDR)
         {
-            findAddress = bin_search(findAddress, inf.maxEA, magicFat, NULL, 4, BIN_SEARCH_FORWARD, BIN_SEARCH_NOCASE);
+            findAddress = bin_search(findAddress, inf.max_ea, magicFat, NULL, 4, BIN_SEARCH_FORWARD, BIN_SEARCH_NOCASE);
             if (findAddress != BADADDR)
             {
                 add_to_fat_list(findAddress);
@@ -168,7 +168,7 @@ bool IDAP_run(size_t)
             }
         }
 
-        findAddress = inf.minEA+1;
+        findAddress = inf.min_ea+1;
         
 #define NR_ARCHS 4
         uchar* archmagic[NR_ARCHS];
@@ -181,7 +181,7 @@ bool IDAP_run(size_t)
         {
             while (findAddress != BADADDR)
             {
-                findAddress = bin_search(findAddress, inf.maxEA, archmagic[i], NULL, 4, BIN_SEARCH_FORWARD, BIN_SEARCH_NOCASE);
+                findAddress = bin_search(findAddress, inf.max_ea, archmagic[i], NULL, 4, BIN_SEARCH_FORWARD, BIN_SEARCH_NOCASE);
                 struct found_fat *f = NULL;
                 HASH_FIND(hh, found_fat, &findAddress, 4, f);
                 if (findAddress != BADADDR && f == NULL)
@@ -200,7 +200,7 @@ bool IDAP_run(size_t)
                     findAddress += 1;
             }
             // reset start address
-            findAddress = inf.minEA+1;
+            findAddress = inf.min_ea+1;
         }
     }
 
