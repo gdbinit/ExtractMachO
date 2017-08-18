@@ -114,12 +114,12 @@ bool IDAP_run(size_t)
 
     if (magicValue == MH_MAGIC || magicValue == MH_MAGIC_64 || magicValue == FAT_CIGAM)
     {
-        int answer = askyn_c(0, "Current location contains a potential Mach-O binary! Attempt to extract only this one?");
+        int answer = ask_yn(0, "Current location contains a potential Mach-O binary! Attempt to extract only this one?");
         // user wants to extract this binary
         if (answer == 1)
         {
             // ask for output location & name
-            outputFilename = askfile_c(1, NULL, "Select output file...");
+            outputFilename = ask_file(1, NULL, "Select output file...");
             if (outputFilename == NULL || outputFilename[0] == 0)
                 return false;
             extract_binary(cursorAddress, outputFilename);
@@ -138,7 +138,7 @@ bool IDAP_run(size_t)
         char form[]="Choose output directory\n<~O~utput directory:F:0:64::>";
         char outputDir[MAXSTR] = "";
         // cancelled
-        if (AskUsingForm_c(form, outputDir) == 0)
+        if (ask_form(form, outputDir) == 0)
             return false;
         
         // we want to avoid dumping itself so we start at one byte ahead of the first address in the database
