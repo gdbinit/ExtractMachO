@@ -105,7 +105,7 @@ bool IDAP_run(size_t)
     // retrieve current cursor address and it's value
     // so we can verify if it can be a mach-o binary
     ea_t cursorAddress = get_screen_ea();
-    uint32 magicValue = get_long(cursorAddress);
+    uint32 magicValue = get_dword(cursorAddress);
     
     uint8_t globalSearch = 1;
     char *outputFilename = NULL;
@@ -217,7 +217,7 @@ uint8_t
 extract_binary(ea_t address, char *outputFilename)
 {
     uint8_t retValue = 0;
-    uint32 magicValue = get_long(address);
+    uint32 magicValue = get_dword(address);
     switch (magicValue)
     {
         case MH_MAGIC:

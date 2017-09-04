@@ -45,7 +45,7 @@ validate_macho(ea_t address)
 #if DEBUG
     msg("[DEBUG] Executing validate macho at address %x\n", address);
 #endif
-    uint32_t magic = get_long(address);
+    uint32_t magic = get_dword(address);
     
     // default is failure
     uint8_t retvalue = 1;

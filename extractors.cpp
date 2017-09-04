@@ -42,7 +42,7 @@
 uint8_t
 extract_mhobject(ea_t address, char *outputFilename)
 {
-    uint32 magicValue = get_long(address);
+    uint32 magicValue = get_dword(address);
     
     struct mach_header *mach_header = NULL;
     struct mach_header_64 *mach_header64 = NULL;
@@ -277,7 +277,7 @@ extract_mhobject(ea_t address, char *outputFilename)
 uint8_t 
 extract_macho(ea_t address, char *outputFilename)
 {
-    uint32 magicValue = get_long(address);
+    uint32 magicValue = get_dword(address);
     
     struct mach_header *mach_header = NULL;
     struct mach_header_64 *mach_header64 = NULL;
