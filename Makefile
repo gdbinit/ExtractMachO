@@ -1,25 +1,24 @@
-EXTENSION=pmc
-LIBTARGET=ida
-# 64bits settings
-ifdef __EA64__
-SWITCH64=-D__EA64__
-EXTENSION=pmc64
-LIBTARGET=ida64
-endif
+PROC=extractmacho
+O1=validate
+O2=extractors
 
-SDKPATH=CHANGME_AND_POINT_TO_THE_SDK_DIR
-LIBRARYPATH=CHANGEME_AND_POINT_TO_THE_IDAQ.APP_MACOS_FOLDER
-#SDKPATH=/Applications/IDA\ Pro\ 6.3/idasdk63
-#LIBRARYPATH=/Applications/IDA\ Pro\ 6.3/idaq.app/Contents/MacOS/
-SRC=extractmacho.cpp validate.cpp extractors.cpp
-OBJS=extractmacho.o validate.o extractors.o
-CC=g++
-LD=g++
-# binary is always i386
-CFLAGS=-arch i386 -D__IDP__ -D__PLUGIN__ -c -D__MAC__ $(SWITCH64) -I$(SDKPATH)/include $(SRC)
-LDFLAGS=-arch i386 --shared $(OBJS) -L$(SDKPATH) -L$(SDKPATH)/bin -l$(LIBTARGET) -Wl -L$(LIBRARYPATH)
+include ../plugin.mak
 
-all:
-	$(CC) $(CFLAGS)
-	$(LD) $(LDFLAGS) -o extractmacho.$(EXTENSION)
+# MAKEDEP dependency list ------------------
+$(F)extractmacho$(O)   : $(I)bitrange.hpp $(I)bytes.hpp $(I)fpro.h   \
+	          $(I)funcs.hpp $(I)ida.hpp $(I)idp.hpp $(I)kernwin.hpp     \
+	          $(I)lines.hpp $(I)llong.hpp $(I)loader.hpp $(I)nalt.hpp   \
+	          $(I)netnode.hpp $(I)pro.h $(I)segment.hpp   \
+	          $(I)ua.hpp $(I)xref.hpp extractmacho.cpp
 
+$(F)validate$(O)   : $(I)bitrange.hpp $(I)bytes.hpp $(I)fpro.h  \
+	          $(I)funcs.hpp $(I)ida.hpp $(I)idp.hpp $(I)kernwin.hpp     \
+	          $(I)lines.hpp $(I)llong.hpp $(I)loader.hpp $(I)nalt.hpp   \
+	          $(I)netnode.hpp $(I)pro.h $(I)segment.hpp   \
+	          $(I)ua.hpp $(I)xref.hpp validate.cpp
+
+$(F)extractors$(O)   : $(I)bitrange.hpp $(I)bytes.hpp $(I)fpro.h  \
+	          $(I)funcs.hpp $(I)ida.hpp $(I)idp.hpp $(I)kernwin.hpp     \
+	          $(I)lines.hpp $(I)llong.hpp $(I)loader.hpp $(I)nalt.hpp   \
+	          $(I)netnode.hpp $(I)pro.h $(I)segment.hpp   \
+	          $(I)ua.hpp $(I)xref.hpp extractors.cpp
