@@ -40,7 +40,7 @@
 #include "validate.h"
 #include "uthash.h"
 
-#define VERSION "1.1.1"
+#define VERSION "1.1.4"
 //#define DEBUG 0
 
 uint8_t extract_binary(ea_t address, char *outputFilename);
@@ -92,7 +92,7 @@ void IDAP_term(void)
     return;
 }
 
-void IDAP_run(int arg)
+bool IDAP_run(size_t)
 { 
     // this is useful for testing - plugin will be unloaded after execution
     // so we can copy a new version and call it again using IDC: RunPlugin("extractmacho", -1);
@@ -105,7 +105,7 @@ void IDAP_run(int arg)
     // retrieve current cursor address and it's value
     // so we can verify if it can be a mach-o binary
     ea_t cursorAddress = get_screen_ea();
-    uint32 magicValue = get_long(cursorAddress);
+    uint32 magicValue = get_dword(cursorAddress);
     
     uint8_t globalSearch = 1;
     char *outputFilename = NULL;
@@ -114,21 +114,21 @@ void IDAP_run(int arg)
 
     if (magicValue == MH_MAGIC || magicValue == MH_MAGIC_64 || magicValue == FAT_CIGAM)
     {
-        int answer = askyn_c(0, "Current location contains a potential Mach-O binary! Attempt to extract only this one?");
+        int answer = ask_yn(0, "Current location contains a potential Mach-O binary! Attempt to extract only this one?");
         // user wants to extract this binary
         if (answer == 1)
         {
             // ask for output location & name
-            outputFilename = askfile_c(1, NULL, "Select output file...");
+            outputFilename = ask_file(1, NULL, "Select output file...");
             if (outputFilename == NULL || outputFilename[0] == 0)
-                return;
+                return false;
             extract_binary(cursorAddress, outputFilename);
             do_report();
-            return;
+            return true;
         }
         // cancelled
         if (answer == -1)
-            return;
+            return false;
         
         globalSearch = answer ? 0 : 1;
     }
@@ -138,11 +138,11 @@ void IDAP_run(int arg)
         char form[]="Choose output directory\n<~O~utput directory:F:0:64::>";
         char outputDir[MAXSTR] = "";
         // cancelled
-        if (AskUsingForm_c(form, outputDir) == 0)
-            return;
+        if (ask_form(form, outputDir) == 0)
+            return false;
         
         // we want to avoid dumping itself so we start at one byte ahead of the first address in the database
-        ea_t findAddress = inf.minEA+1;
+        ea_t findAddress = inf.min_ea+1;
         uchar magicFat[]    = "\xCA\xFE\xBA\xBE";
         
         // we have a small problem here
@@ -153,7 +153,7 @@ void IDAP_run(int arg)
         // lookup fat archives
         while (findAddress != BADADDR)
         {
-            findAddress = bin_search(findAddress, inf.maxEA, magicFat, NULL, 4, BIN_SEARCH_FORWARD, BIN_SEARCH_NOCASE);
+            findAddress = bin_search(findAddress, inf.max_ea, magicFat, NULL, 4, BIN_SEARCH_FORWARD, BIN_SEARCH_NOCASE);
             if (findAddress != BADADDR)
             {
                 add_to_fat_list(findAddress);
@@ -168,7 +168,7 @@ void IDAP_run(int arg)
             }
         }
 
-        findAddress = inf.minEA+1;
+        findAddress = inf.min_ea+1;
         
 #define NR_ARCHS 4
         uchar* archmagic[NR_ARCHS];
@@ -181,7 +181,7 @@ void IDAP_run(int arg)
         {
             while (findAddress != BADADDR)
             {
-                findAddress = bin_search(findAddress, inf.maxEA, archmagic[i], NULL, 4, BIN_SEARCH_FORWARD, BIN_SEARCH_NOCASE);
+                findAddress = bin_search(findAddress, inf.max_ea, archmagic[i], NULL, 4, BIN_SEARCH_FORWARD, BIN_SEARCH_NOCASE);
                 struct found_fat *f = NULL;
                 HASH_FIND(hh, found_fat, &findAddress, 4, f);
                 if (findAddress != BADADDR && f == NULL)
@@ -200,14 +200,14 @@ void IDAP_run(int arg)
                     findAddress += 1;
             }
             // reset start address
-            findAddress = inf.minEA+1;
+            findAddress = inf.min_ea+1;
         }
     }
 
     // output a final report of what happened
     do_report();
     // it's over!
-	return;
+	return true;
 }
 
 /*
@@ -217,7 +217,7 @@ uint8_t
 extract_binary(ea_t address, char *outputFilename)
 {
     uint8_t retValue = 0;
-    uint32 magicValue = get_long(address);
+    uint32 magicValue = get_dword(address);
     switch (magicValue)
     {
         case MH_MAGIC:
@@ -237,7 +237,7 @@ extract_binary(ea_t address, char *outputFilename)
             }
             // we just need to read mach_header.filetype so no problem in using the 32bit struct
             struct mach_header header;
-            get_many_bytes(address, &header, sizeof(struct mach_header));
+            get_bytes(&header, sizeof(struct mach_header), address);
             uint32_t filetype = (magicValue == MH_MAGIC || magicValue == MH_MAGIC_64) ? header.filetype : ntohl(header.filetype);
             if (filetype == MH_OBJECT)
                 retValue = extract_mhobject(address, outputFilename);
@@ -316,7 +316,7 @@ add_to_fat_list(ea_t address)
 {
     // process the fat structures
     struct fat_header fatHeader;
-    get_many_bytes(address, &fatHeader, sizeof(struct fat_header));
+    get_bytes(&fatHeader, sizeof(struct fat_header), address);
     if (fatHeader.magic == FAT_CIGAM)
     {
         // fat headers are always big endian!
@@ -328,7 +328,7 @@ add_to_fat_list(ea_t address)
             for (uint32_t i = 0; i < nfat_arch; i++)
             {
                 struct fat_arch fatArch;
-                get_many_bytes(archAddress, &fatArch, sizeof(struct fat_arch));
+                get_bytes(&fatArch, sizeof(struct fat_arch), archAddress);
                 // binary is located at start of fat magic plus offset found in the fat_arch structure
                 ea_t binLocation = address + ntohl(fatArch.offset);
                 

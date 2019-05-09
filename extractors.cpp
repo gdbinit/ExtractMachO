@@ -42,7 +42,7 @@
 uint8_t
 extract_mhobject(ea_t address, char *outputFilename)
 {
-    uint32 magicValue = get_long(address);
+    uint32 magicValue = get_dword(address);
     
     struct mach_header *mach_header = NULL;
     struct mach_header_64 *mach_header64 = NULL;
@@ -55,7 +55,7 @@ extract_mhobject(ea_t address, char *outputFilename)
 #endif
         mach_header = (struct mach_header *)qalloc(sizeof(struct mach_header));
         // retrieve mach_header contents
-        if(!get_many_bytes(address, mach_header, sizeof(struct mach_header)))
+        if(!get_bytes(mach_header, sizeof(struct mach_header), address))
         {
             msg("[ERROR] Read bytes failed!\n");
             return 1;
@@ -67,7 +67,7 @@ extract_mhobject(ea_t address, char *outputFilename)
         msg("[DEBUG] Target is 64bits!\n");
 #endif
         mach_header64 = (struct mach_header_64 *)qalloc(sizeof(struct mach_header_64));
-        if(!get_many_bytes(address, mach_header64, sizeof(struct mach_header_64)))
+        if(!get_bytes(mach_header64, sizeof(struct mach_header_64), address))
         {
             msg("[ERROR] Read bytes failed!\n");
             return 1;
@@ -116,7 +116,7 @@ extract_mhobject(ea_t address, char *outputFilename)
     uint8_t *loadcmdsBuffer = NULL;
     loadcmdsBuffer = (uint8_t*)qalloc(sizeofcmds);
     
-    get_many_bytes(address + headerSize, loadcmdsBuffer, sizeofcmds);
+    get_bytes(loadcmdsBuffer, sizeofcmds, address + headerSize);
     // write all the load commands block to the output file
     // only LC_SEGMENT commands contain further data
     qfwrite(outputFile, loadcmdsBuffer, sizeofcmds);
@@ -129,7 +129,7 @@ extract_mhobject(ea_t address, char *outputFilename)
     // only the segment commands have useful information
     for (uint32_t i = 0; i < ncmds; i++)
     {
-        get_many_bytes(cmdsBaseAddress, &loadCommand, sizeof(struct load_command));
+        get_bytes(&loadCommand, sizeof(struct load_command), cmdsBaseAddress);
         struct segment_command segmentCommand;
         struct segment_command_64 segmentCommand64;
         // swap the endianness of some fields if it's powerpc target
@@ -142,7 +142,7 @@ extract_mhobject(ea_t address, char *outputFilename)
         // 32bits targets
         if (loadCommand.cmd == LC_SEGMENT)
         {
-            get_many_bytes(cmdsBaseAddress, &segmentCommand, sizeof(struct segment_command));
+            get_bytes(&segmentCommand, sizeof(struct segment_command), cmdsBaseAddress);
             // swap the endianness of some fields if it's powerpc target
             if (magicValue == MH_CIGAM)
             {
@@ -157,7 +157,7 @@ extract_mhobject(ea_t address, char *outputFilename)
             // FIXME: we need to find the lowest one since the section info can be reordered
             for (uint32_t x = 0; x < segmentCommand.nsects; x++)
             {
-                get_many_bytes(sectionAddress, &sectionCommand, sizeof(struct section));
+                get_bytes(&sectionCommand, sizeof(struct section), sectionAddress);
                 // swap the endianness of some fields if it's powerpc target
                 if (magicValue == MH_CIGAM)
                 {
@@ -169,7 +169,7 @@ extract_mhobject(ea_t address, char *outputFilename)
                 {
                     uint32_t size = sectionCommand.nreloc*sizeof(struct relocation_info);
                     uint8_t *relocBuf = (uint8_t*)qalloc(size);
-                    get_many_bytes(address + sectionCommand.reloff, relocBuf, size);
+                    get_bytes(relocBuf, size, address + sectionCommand.reloff);
                     qfseek(outputFile, sectionCommand.reloff, SEEK_SET);
                     qfwrite(outputFile, relocBuf, size);
                     qfree(relocBuf);
@@ -178,7 +178,7 @@ extract_mhobject(ea_t address, char *outputFilename)
             }
             // read and write the data
             uint8_t *buf = (uint8_t*)qalloc(segmentCommand.filesize);
-            get_many_bytes(address + segmentCommand.fileoff, buf, segmentCommand.filesize);
+            get_bytes(buf, segmentCommand.filesize, address + segmentCommand.fileoff);
             // always set the offset
             qfseek(outputFile, segmentCommand.fileoff, SEEK_SET);
             qfwrite(outputFile, buf, segmentCommand.filesize);
@@ -188,7 +188,7 @@ extract_mhobject(ea_t address, char *outputFilename)
         else if (loadCommand.cmd == LC_SYMTAB)
         {
             struct symtab_command symtabCommand;
-            get_many_bytes(cmdsBaseAddress, &symtabCommand, sizeof(struct symtab_command));
+            get_bytes(&symtabCommand, sizeof(struct symtab_command), cmdsBaseAddress);
             // swap the endianness of some fields if it's powerpc target
             if (magicValue == MH_CIGAM || magicValue == MH_CIGAM_64)
             {
@@ -201,7 +201,7 @@ extract_mhobject(ea_t address, char *outputFilename)
             if (symtabCommand.symoff > 0)
             {
                 void *buf = qalloc(symtabCommand.nsyms*sizeof(struct nlist));
-                get_many_bytes(address + symtabCommand.symoff, buf, symtabCommand.nsyms*sizeof(struct nlist));
+                get_bytes(buf, symtabCommand.nsyms*sizeof(struct nlist), address + symtabCommand.symoff);
                 qfseek(outputFile, symtabCommand.symoff, SEEK_SET);
                 qfwrite(outputFile, buf, symtabCommand.nsyms*sizeof(struct nlist));
                 qfree(buf);
@@ -209,7 +209,7 @@ extract_mhobject(ea_t address, char *outputFilename)
             if (symtabCommand.stroff > 0)
             {
                 void *buf = qalloc(symtabCommand.strsize);
-                get_many_bytes(address + symtabCommand.stroff, buf, symtabCommand.strsize);
+                get_bytes(buf, symtabCommand.strsize, address + symtabCommand.stroff);
                 qfseek(outputFile, symtabCommand.stroff, SEEK_SET);
                 qfwrite(outputFile, buf, symtabCommand.strsize);
                 qfree(buf);
@@ -219,7 +219,7 @@ extract_mhobject(ea_t address, char *outputFilename)
         // FIXME: will this work ? needs to be tested :-)
         else if (loadCommand.cmd == LC_SEGMENT_64)
         {
-            get_many_bytes(cmdsBaseAddress, &segmentCommand64, sizeof(struct segment_command_64));
+            get_bytes(&segmentCommand64, sizeof(struct segment_command_64), cmdsBaseAddress);
             // swap the endianness of some fields if it's powerpc target
             if (magicValue == MH_CIGAM_64)
             {
@@ -232,7 +232,7 @@ extract_mhobject(ea_t address, char *outputFilename)
             struct section_64 sectionCommand64;
             for (uint32_t x = 0; x < segmentCommand64.nsects; x++)
             {
-                get_many_bytes(sectionAddress, &sectionCommand64, sizeof(struct section_64));
+                get_bytes(&sectionCommand64, sizeof(struct section_64), sectionAddress);
                 // swap the endianness of some fields if it's powerpc target
                 if (magicValue == MH_CIGAM_64)
                 {
@@ -245,7 +245,7 @@ extract_mhobject(ea_t address, char *outputFilename)
                 {
                     uint32_t size = sectionCommand64.nreloc*sizeof(struct relocation_info);
                     uint8_t *relocBuf = (uint8_t*)qalloc(size);
-                    get_many_bytes(address + sectionCommand64.reloff, relocBuf, size);
+                    get_bytes(relocBuf, size, address + sectionCommand64.reloff);
                     qfseek(outputFile, sectionCommand64.reloff, SEEK_SET);
                     qfwrite(outputFile, relocBuf, size);
                     qfree(relocBuf);
@@ -254,7 +254,7 @@ extract_mhobject(ea_t address, char *outputFilename)
             }
             // read and write the data
             uint8_t *buf = (uint8_t*)qalloc(segmentCommand64.filesize);
-            get_many_bytes(address + segmentCommand64.fileoff, buf, segmentCommand64.filesize);
+            get_bytes(buf, segmentCommand64.filesize, address + segmentCommand64.fileoff);
             qfseek(outputFile, segmentCommand64.fileoff, SEEK_SET);
             qfwrite(outputFile, buf, segmentCommand64.filesize);
             qfree(buf);
@@ -277,7 +277,7 @@ extract_mhobject(ea_t address, char *outputFilename)
 uint8_t 
 extract_macho(ea_t address, char *outputFilename)
 {
-    uint32 magicValue = get_long(address);
+    uint32 magicValue = get_dword(address);
     
     struct mach_header *mach_header = NULL;
     struct mach_header_64 *mach_header64 = NULL;
@@ -290,7 +290,7 @@ extract_macho(ea_t address, char *outputFilename)
 #endif
         mach_header = (struct mach_header *)qalloc(sizeof(struct mach_header));
         // retrieve mach_header contents
-        if(!get_many_bytes(address, mach_header, sizeof(struct mach_header)))
+        if(!get_bytes(mach_header, sizeof(struct mach_header), address))
         {
             msg("[ERROR] Read bytes failed!\n");
             return 1;
@@ -302,7 +302,7 @@ extract_macho(ea_t address, char *outputFilename)
         msg("[DEBUG] Target is 64bits!\n");
 #endif
         mach_header64 = (struct mach_header_64 *)qalloc(sizeof(struct mach_header_64));
-        if(!get_many_bytes(address, mach_header64, sizeof(struct mach_header_64)))
+        if(!get_bytes(mach_header64, sizeof(struct mach_header_64), address))
         {
             msg("[ERROR] Read bytes failed!\n");
             return 1;
@@ -356,7 +356,7 @@ extract_macho(ea_t address, char *outputFilename)
     uint8_t *loadcmdsBuffer = NULL;
     loadcmdsBuffer = (uint8_t*)qalloc(sizeofcmds);
     
-    get_many_bytes(address + headerSize, loadcmdsBuffer, sizeofcmds);
+    get_bytes(loadcmdsBuffer, sizeofcmds, address + headerSize);
     // write all the load commands block to the output file
     // only LC_SEGMENT commands contain further data
     qfwrite(outputFile, loadcmdsBuffer, sizeofcmds);
@@ -370,7 +370,7 @@ extract_macho(ea_t address, char *outputFilename)
     // only the segment commands have useful information
     for (uint32_t i = 0; i < ncmds; i++)
     {
-        get_many_bytes(cmdsBaseAddress, &loadCommand, sizeof(struct load_command));
+        get_bytes(&loadCommand, sizeof(struct load_command), cmdsBaseAddress);
         struct segment_command segmentCommand;
         struct segment_command_64 segmentCommand64;
         // swap the endianness of some fields if it's powerpc target
@@ -384,7 +384,7 @@ extract_macho(ea_t address, char *outputFilename)
         // FIXME: do we also need to dump the relocs info here ?
         if (loadCommand.cmd == LC_SEGMENT)
         {
-            get_many_bytes(cmdsBaseAddress, &segmentCommand, sizeof(struct segment_command));
+            get_bytes(&segmentCommand, sizeof(struct segment_command), cmdsBaseAddress);
             // swap the endianness of some fields if it's powerpc target
             if (magicValue == MH_CIGAM)
             {
@@ -402,7 +402,7 @@ extract_macho(ea_t address, char *outputFilename)
                 // FIXME: we need to find the lowest one since the section info can be reordered
                 for (uint32_t x = 0; x < segmentCommand.nsects; x++)
                 {
-                    get_many_bytes(sectionAddress, &sectionCommand, sizeof(struct section));
+                    get_bytes(&sectionCommand, sizeof(struct section), sectionAddress);
                     // swap the endianness of some fields if it's powerpc target
                     if (magicValue == MH_CIGAM)
                         sectionCommand.offset = ntohl(sectionCommand.offset);
@@ -422,7 +422,7 @@ extract_macho(ea_t address, char *outputFilename)
             }
             // read and write the data
             uint8_t *buf = (uint8_t*)qalloc(segmentCommand.filesize);
-            get_many_bytes(address + codeOffset, buf, segmentCommand.filesize);
+            get_bytes(buf, segmentCommand.filesize, address + codeOffset);
             // always set the offset
             qfseek(outputFile, codeOffset, SEEK_SET);
             qfwrite(outputFile, buf, segmentCommand.filesize);
@@ -431,7 +431,7 @@ extract_macho(ea_t address, char *outputFilename)
         // 64bits targets
         else if (loadCommand.cmd == LC_SEGMENT_64)
         {
-            get_many_bytes(cmdsBaseAddress, &segmentCommand64, sizeof(struct segment_command_64));
+            get_bytes(&segmentCommand64, sizeof(struct segment_command_64), cmdsBaseAddress);
             // swap the endianness of some fields if it's powerpc target
             if (magicValue == MH_CIGAM_64)
             {
@@ -446,7 +446,7 @@ extract_macho(ea_t address, char *outputFilename)
                 struct section_64 sectionCommand64;
                 for (uint32_t x = 0; x < segmentCommand64.nsects; x++)
                 {
-                    get_many_bytes(sectionAddress, &sectionCommand64, sizeof(struct section_64));
+                    get_bytes(&sectionCommand64, sizeof(struct section_64), sectionAddress);
                     // swap the endianness of some fields if it's powerpc target
                     if (magicValue == MH_CIGAM_64)
                         sectionCommand64.offset = ntohl(sectionCommand64.offset);
@@ -465,7 +465,7 @@ extract_macho(ea_t address, char *outputFilename)
             }
             // read and write the data
             uint8_t *buf = (uint8_t*)qalloc(segmentCommand64.filesize);
-            get_many_bytes(address + codeOffset, buf, segmentCommand64.filesize);
+            get_bytes(buf, segmentCommand64.filesize, address + codeOffset);
             qfseek(outputFile, codeOffset, SEEK_SET);
             qfwrite(outputFile, buf, segmentCommand64.filesize);
             qfree(buf);
@@ -491,7 +491,7 @@ extract_fat(ea_t address, char *outputFilename)
     msg("[DEBUG] Trying to extract a fat binary target!\n");
 #endif
     struct fat_header fatHeader;
-    if(!get_many_bytes(address, &fatHeader, sizeof(struct fat_header)))
+    if(!get_bytes(&fatHeader, sizeof(struct fat_header), address))
     {
         msg("[ERROR] Read bytes failed!\n");
         return 1;
@@ -514,7 +514,7 @@ extract_fat(ea_t address, char *outputFilename)
     uint32_t fatArchSize = sizeof(struct fat_arch)*ntohl(fatHeader.nfat_arch);
     // write all fat_arch structs
     void *fatArchBuf = qalloc(fatArchSize);
-    if(!get_many_bytes(fatArchAddress, fatArchBuf, fatArchSize))
+    if(!get_bytes(fatArchBuf, fatArchSize, fatArchAddress))
     {
         msg("[ERROR] Read bytes failed!\n");
         return 1;
@@ -526,14 +526,14 @@ extract_fat(ea_t address, char *outputFilename)
     {
         struct fat_arch tempFatArch;
         // read the fat_arch struct
-        if(!get_many_bytes(fatArchAddress, &tempFatArch, sizeof(struct fat_arch)))
+        if(!get_bytes(&tempFatArch, sizeof(struct fat_arch), fatArchAddress))
         {
             msg("[ERROR] Read bytes failed!\n");
             return 1;
         }
         // read and write the mach-o binary pointed by each fat_arch struct
         void *tempBuf = qalloc(ntohl(tempFatArch.size));
-        if(!get_many_bytes(address+ntohl(tempFatArch.offset), tempBuf, ntohl(tempFatArch.size)))
+        if(!get_bytes(tempBuf, ntohl(tempFatArch.size), address+ntohl(tempFatArch.offset)))
         {
             msg("[ERROR] Read bytes failed!\n");
             return 1;
