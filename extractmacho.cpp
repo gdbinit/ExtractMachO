@@ -40,7 +40,7 @@
 #include "validate.h"
 #include "uthash.h"
 
-#define VERSION "1.1"
+#define VERSION "1.1.1"
 //#define DEBUG 0
 
 uint8_t extract_binary(ea_t address, char *outputFilename);
@@ -135,14 +135,14 @@ void IDAP_run(int arg)
 
     if (globalSearch)
     {
-        char form[]="Choose output directory\n<~O~utput directory:F:1:64::>";
+        char form[]="Choose output directory\n<~O~utput directory:F:0:64::>";
         char outputDir[MAXSTR] = "";
         // cancelled
         if (AskUsingForm_c(form, outputDir) == 0)
             return;
         
         // we want to avoid dumping itself so we start at one byte ahead of the first address in the database
-        int findAddress = inf.minEA+1;
+        ea_t findAddress = inf.minEA+1;
         uchar magicFat[]    = "\xCA\xFE\xBA\xBE";
         
         // we have a small problem here
@@ -158,7 +158,11 @@ void IDAP_run(int arg)
             {
                 add_to_fat_list(findAddress);
                 char output[MAXSTR];
+#ifdef __EA64__
+                qsnprintf(output, sizeof(output)-1, "%s/extracted_offset_0x%llx_fat", outputDir, findAddress);
+#else
                 qsnprintf(output, sizeof(output)-1, "%s/extracted_offset_0x%x_fat", outputDir, findAddress);
+#endif
                 extract_binary(findAddress, output);
                 findAddress += 1;
             }
@@ -179,11 +183,15 @@ void IDAP_run(int arg)
             {
                 findAddress = bin_search(findAddress, inf.maxEA, archmagic[i], NULL, 4, BIN_SEARCH_FORWARD, BIN_SEARCH_NOCASE);
                 struct found_fat *f = NULL;
-                HASH_FIND(hh, found_fat, &findAddress, sizeof(ea_t), f);
+                HASH_FIND(hh, found_fat, &findAddress, 4, f);
                 if (findAddress != BADADDR && f == NULL)
                 {
                     char output[MAXSTR];
+#ifdef __EA64__
+                    qsnprintf(output, sizeof(output)-1, "%s/extracted_offset_0x%llx", outputDir, findAddress);
+#else
                     qsnprintf(output, sizeof(output)-1, "%s/extracted_offset_0x%x", outputDir, findAddress);
+#endif
                     extract_binary(findAddress, output);
                     findAddress += 1;
                 }
@@ -219,7 +227,11 @@ extract_binary(ea_t address, char *outputFilename)
         {
             if(validate_macho(address))
             {
+#ifdef __EA64__
+                msg("[ERROR] Not a valid mach-o binary at %llx\n", address);
+#else
                 msg("[ERROR] Not a valid mach-o binary at %x\n", address);
+#endif
                 add_to_hits_list(address, (magicValue == MH_MAGIC || magicValue == MH_CIGAM) ? TARGET_32 : TARGET_64, 1);
                 return 1;
             }
@@ -269,9 +281,15 @@ do_report(void)
     struct report *tempReport;
     for (tempReport = report; tempReport != NULL; tempReport = (struct report*)tempReport->hh.next)
     {
+#ifdef __EA64__
+        msg("Address: 0x%016llx Type: %6s Extracted: %s\n", tempReport->id, 
+            tempReport->type == 0 ? "32bits" : tempReport->type == 1 ? "64bits" : "Fat",
+            tempReport->extracted ? "No" : "Yes");
+#else
         msg("Address: 0x%016x Type: %6s Extracted: %s\n", tempReport->id, 
             tempReport->type == 0 ? "32bits" : tempReport->type == 1 ? "64bits" : "Fat",
             tempReport->extracted ? "No" : "Yes");
+#endif
     }    
     msg("Mach-O extraction is over!\n");
 }
